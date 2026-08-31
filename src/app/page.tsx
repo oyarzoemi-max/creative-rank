@@ -1,4 +1,52 @@
-const navItems = ["LIVE BIDS", "SHOWCASE", "TRENDING", "HOW IT WORKS"];
+'use client';
+
+import { useEffect, useMemo, useState } from "react";
+
+type Category = "DESIGN" | "COPY" | "BUILD";
+
+type BidEntry = {
+  rank: number;
+  name: string;
+  specialty: string;
+  bid: string;
+  bidValue: number;
+  score: string;
+  minimumRequired: number;
+};
+
+type DemoFormState = {
+  creatorName: string;
+  professionalTitle: string;
+  bio: string;
+  location: string;
+  email: string;
+  portfolioUrl: string;
+  socialUrl: string;
+  profileImageUrl: string;
+  category: Category;
+  specialty: string;
+  projectTitle: string;
+  projectImageUrl: string;
+  projectUrl: string;
+  projectDescription: string;
+  desiredPosition: number | null;
+  bidAmount: string;
+};
+
+type DemoSuccessState = {
+  creatorName: string;
+  position: number;
+  category: Category;
+  specialty: string;
+  bidAmount: number;
+};
+
+const navItems = [
+  { label: "LIVE BIDS", id: "live-bids" },
+  { label: "SHOWCASE", id: "showcase" },
+  { label: "TRENDING", id: "trending" },
+  { label: "HOW IT WORKS", id: "how-it-works" },
+];
 
 const conceptCards = [
   {
@@ -15,17 +63,17 @@ const conceptCards = [
   },
 ];
 
-const liveBids = [
-  { rank: 1, name: "Aster Vale", specialty: "Motion Design", bid: "$18.4K", score: "96.8" },
-  { rank: 2, name: "Nova Kline", specialty: "Brand Systems", bid: "$16.1K", score: "95.6" },
-  { rank: 3, name: "Luma Reed", specialty: "3D Illustration", bid: "$15.7K", score: "94.9" },
-  { rank: 4, name: "Kiro Sato", specialty: "Product Storytelling", bid: "$14.8K", score: "93.7" },
-  { rank: 5, name: "Zee Sol", specialty: "Campaign Art", bid: "$13.9K", score: "92.4" },
-  { rank: 6, name: "Rae Moss", specialty: "Editorial Design", bid: "$12.6K", score: "91.3" },
-  { rank: 7, name: "Iris Noon", specialty: "AI Visuals", bid: "$11.3K", score: "90.8" },
-  { rank: 8, name: "Juno Faye", specialty: "Brand Film", bid: "$10.9K", score: "89.2" },
-  { rank: 9, name: "Milo Hart", specialty: "UX Motion", bid: "$9.8K", score: "88.6" },
-  { rank: 10, name: "Sora Venn", specialty: "Packaging Design", bid: "$9.2K", score: "87.9" },
+const baseLiveBids: BidEntry[] = [
+  { rank: 1, name: "Aster Vale", specialty: "Motion Design", bid: "$18.4K", bidValue: 18400, score: "96.8", minimumRequired: 19600 },
+  { rank: 2, name: "Nova Kline", specialty: "Brand Systems", bid: "$16.1K", bidValue: 16100, score: "95.6", minimumRequired: 17100 },
+  { rank: 3, name: "Luma Reed", specialty: "3D Illustration", bid: "$15.7K", bidValue: 15700, score: "94.9", minimumRequired: 16800 },
+  { rank: 4, name: "Kiro Sato", specialty: "Product Storytelling", bid: "$14.8K", bidValue: 14800, score: "93.7", minimumRequired: 15800 },
+  { rank: 5, name: "Zee Sol", specialty: "Campaign Art", bid: "$13.9K", bidValue: 13900, score: "92.4", minimumRequired: 14900 },
+  { rank: 6, name: "Rae Moss", specialty: "Editorial Design", bid: "$12.6K", bidValue: 12600, score: "91.3", minimumRequired: 13400 },
+  { rank: 7, name: "Iris Noon", specialty: "AI Visuals", bid: "$11.3K", bidValue: 11300, score: "90.8", minimumRequired: 12100 },
+  { rank: 8, name: "Juno Faye", specialty: "Brand Film", bid: "$10.9K", bidValue: 10900, score: "89.2", minimumRequired: 11600 },
+  { rank: 9, name: "Milo Hart", specialty: "UX Motion", bid: "$9.8K", bidValue: 9800, score: "88.6", minimumRequired: 10400 },
+  { rank: 10, name: "Sora Venn", specialty: "Packaging Design", bid: "$9.2K", bidValue: 9200, score: "87.9", minimumRequired: 9800 },
 ];
 
 const showcaseCards = [
@@ -49,7 +97,611 @@ const trendingCreators = [
   { rank: 5, name: "Zee Sol", specialty: "Campaign Art", score: 92.4 },
 ];
 
+const howItWorksSteps = [
+  {
+    step: "01",
+    title: "BUILD YOUR PROFILE",
+    text: "Show the portfolio and skills that prove your creative edge.",
+  },
+  {
+    step: "02",
+    title: "PLACE A BID",
+    text: "Compete for the best position in the next 48-hour ranking cycle.",
+  },
+  {
+    step: "03",
+    title: "EARN ATTENTION",
+    text: "Top performers get discovered, featured, and validated by the market.",
+  },
+];
+
+const categoryOptions: Category[] = ["DESIGN", "COPY", "BUILD"];
+
+const specialtyOptions: Record<Category, string[]> = {
+  DESIGN: ["UI/UX Design", "Branding", "Graphic Design", "Art Direction", "Illustration"],
+  COPY: ["Copywriting", "Content Marketing", "Brand Voice", "Email Marketing", "SEO Copy"],
+  BUILD: ["Web Development", "App Development", "No-Code", "Frontend Development", "Product Design Systems"],
+};
+
+const createDefaultDemoForm = (): DemoFormState => ({
+  creatorName: "",
+  professionalTitle: "",
+  bio: "",
+  location: "",
+  email: "",
+  portfolioUrl: "",
+  socialUrl: "",
+  profileImageUrl: "",
+  category: "DESIGN",
+  specialty: specialtyOptions.DESIGN[0],
+  projectTitle: "",
+  projectImageUrl: "",
+  projectUrl: "",
+  projectDescription: "",
+  desiredPosition: null,
+  bidAmount: "",
+});
+
+const formatCurrencyCompact = (value: number) => {
+  if (value >= 1000) {
+    return `$${(value / 1000).toFixed(1)}K`;
+  }
+
+  return `$${value.toLocaleString()}`;
+};
+
+const formatCountdown = (milliseconds: number) => {
+  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+  const hours = Math.floor(totalSeconds / 3600);
+  const minutes = Math.floor((totalSeconds % 3600) / 60);
+  const seconds = totalSeconds % 60;
+
+  return [hours, minutes, seconds]
+    .map((value) => String(value).padStart(2, "0"))
+    .join(":");
+};
+
+const isValidUrl = (value: string) => {
+  if (!value.trim()) {
+    return false;
+  }
+
+  try {
+    const url = new URL(value);
+    return ["http:", "https:"].includes(url.protocol);
+  } catch {
+    return false;
+  }
+};
+
+const scrollToSection = (sectionId: string) => {
+  document.getElementById(sectionId)?.scrollIntoView({
+    behavior: "smooth",
+    block: "start",
+  });
+};
+
 export default function Home() {
+  const [deadline] = useState(() => Date.now() + 48 * 60 * 60 * 1000);
+  const [now, setNow] = useState(Date.now());
+  const [liveBids, setLiveBids] = useState<BidEntry[]>(baseLiveBids);
+  const [selectedBid, setSelectedBid] = useState<BidEntry | null>(null);
+  const [demoFlowOpen, setDemoFlowOpen] = useState(false);
+  const [demoStep, setDemoStep] = useState(1);
+  const [demoForm, setDemoForm] = useState<DemoFormState>(createDefaultDemoForm());
+  const [demoErrors, setDemoErrors] = useState<Record<string, string>>({});
+  const [demoSuccess, setDemoSuccess] = useState<DemoSuccessState | null>(null);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => {
+      setNow(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
+  const countdown = useMemo(
+    () => formatCountdown(Math.max(deadline - now, 0)),
+    [deadline, now],
+  );
+
+  const currentPositionData = demoForm.desiredPosition
+    ? liveBids.find((entry) => entry.rank === demoForm.desiredPosition) ?? null
+    : null;
+
+  const openDemoFlow = (preselectedPosition?: number) => {
+    setDemoFlowOpen(true);
+    setDemoStep(1);
+    setDemoErrors({});
+    setDemoSuccess(null);
+    setDemoForm({
+      ...createDefaultDemoForm(),
+      desiredPosition: preselectedPosition ?? null,
+      bidAmount: preselectedPosition ? String(liveBids.find((entry) => entry.rank === preselectedPosition)?.minimumRequired ?? 0) : "",
+    });
+    setSelectedBid(null);
+  };
+
+  const handleFieldChange = (field: keyof DemoFormState, value: string) => {
+    setDemoForm((previous) => ({
+      ...previous,
+      [field]: value,
+    }));
+
+    setDemoErrors((previous) => ({
+      ...previous,
+      [field]: "",
+    }));
+  };
+
+  const handleCategoryChange = (category: Category) => {
+    setDemoForm((previous) => ({
+      ...previous,
+      category,
+      specialty: specialtyOptions[category][0],
+    }));
+  };
+
+  const validateCurrentStep = () => {
+    const nextErrors: Record<string, string> = {};
+
+    if (demoStep === 1) {
+      if (!demoForm.creatorName.trim()) nextErrors.creatorName = "Creator name is required.";
+      if (!demoForm.professionalTitle.trim()) nextErrors.professionalTitle = "Professional title is required.";
+      if (!demoForm.bio.trim()) nextErrors.bio = "Short bio is required.";
+      if (!demoForm.location.trim()) nextErrors.location = "Location is required.";
+      if (!demoForm.email.trim()) nextErrors.email = "Email is required.";
+      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(demoForm.email)) nextErrors.email = "Please enter a valid email address.";
+      if (!demoForm.portfolioUrl.trim()) nextErrors.portfolioUrl = "Portfolio URL is required.";
+      else if (!isValidUrl(demoForm.portfolioUrl)) nextErrors.portfolioUrl = "Please enter a valid http or https URL.";
+      if (!demoForm.socialUrl.trim()) nextErrors.socialUrl = "Social/profile URL is required.";
+      else if (!isValidUrl(demoForm.socialUrl)) nextErrors.socialUrl = "Please enter a valid http or https URL.";
+      if (!demoForm.profileImageUrl.trim()) nextErrors.profileImageUrl = "Profile image URL is required.";
+      else if (!isValidUrl(demoForm.profileImageUrl)) nextErrors.profileImageUrl = "Please enter a valid http or https URL.";
+    }
+
+    if (demoStep === 2) {
+      if (!demoForm.category.trim()) nextErrors.category = "Choose a category.";
+      if (!demoForm.specialty.trim()) nextErrors.specialty = "Add your specialty.";
+    }
+
+    if (demoStep === 3) {
+      if (!demoForm.projectTitle.trim()) nextErrors.projectTitle = "Featured project title is required.";
+      if (!demoForm.projectImageUrl.trim()) nextErrors.projectImageUrl = "Project image URL is required.";
+      else if (!isValidUrl(demoForm.projectImageUrl)) nextErrors.projectImageUrl = "Please enter a valid http or https URL.";
+      if (!demoForm.projectUrl.trim()) nextErrors.projectUrl = "Project URL is required.";
+      else if (!isValidUrl(demoForm.projectUrl)) nextErrors.projectUrl = "Please enter a valid http or https URL.";
+      if (!demoForm.projectDescription.trim()) nextErrors.projectDescription = "Project description is required.";
+    }
+
+    if (demoStep === 4 && demoForm.desiredPosition === null) {
+      nextErrors.desiredPosition = "Select a position to take.";
+    }
+
+    if (demoStep === 5) {
+      if (!demoForm.bidAmount.trim()) nextErrors.bidAmount = "Enter a demo bid amount.";
+      else {
+        const parsedBid = Number(demoForm.bidAmount);
+        const minimumRequired = currentPositionData?.minimumRequired ?? 0;
+
+        if (Number.isNaN(parsedBid) || parsedBid < minimumRequired) {
+          nextErrors.bidAmount = `Bid must be at least ${formatCurrencyCompact(minimumRequired)}.`;
+        }
+      }
+    }
+
+    setDemoErrors(nextErrors);
+    return Object.keys(nextErrors).length === 0;
+  };
+
+  const handleDemoNext = () => {
+    if (!validateCurrentStep()) {
+      return;
+    }
+
+    if (demoStep < 6) {
+      setDemoStep((previous) => previous + 1);
+      return;
+    }
+  };
+
+  const handleDemoBack = () => {
+    if (demoStep > 1) {
+      setDemoStep((previous) => previous - 1);
+    }
+  };
+
+  const handleDemoConfirm = () => {
+    if (!validateCurrentStep()) {
+      return;
+    }
+
+    if (!demoForm.desiredPosition || !currentPositionData) {
+      setDemoErrors((previous) => ({
+        ...previous,
+        desiredPosition: "Select a desired position before confirming.",
+      }));
+      setDemoStep(4);
+      return;
+    }
+
+    const bidValue = Number(demoForm.bidAmount);
+    const targetRank = demoForm.desiredPosition;
+    const demoEntry: BidEntry = {
+      rank: targetRank,
+      name: demoForm.creatorName.trim(),
+      specialty: demoForm.specialty.trim() || demoForm.category,
+      bid: formatCurrencyCompact(bidValue),
+      bidValue,
+      score: "NEW",
+      minimumRequired: currentPositionData.minimumRequired,
+    };
+
+    const nextList = [...liveBids];
+    const targetIndex = targetRank - 1;
+    const shifted = nextList.map((entry, index) => {
+      if (index === targetIndex) {
+        return demoEntry;
+      }
+
+      if (index > targetIndex) {
+        return nextList[index - 1];
+      }
+
+      return entry;
+    }).slice(0, 10).map((entry, index) => ({
+      ...entry,
+      rank: index + 1,
+    }));
+
+    setLiveBids(shifted);
+    setDemoSuccess({
+      creatorName: demoForm.creatorName.trim(),
+      position: targetRank,
+      category: demoForm.category,
+      specialty: demoForm.specialty.trim() || demoForm.category,
+      bidAmount: bidValue,
+    });
+    setDemoStep(6);
+  };
+
+  const renderProfileStep = () => (
+    <div className="demo-step-body">
+      <div className="form-grid">
+        <label className="field">
+          <span>Creator name</span>
+          <input
+            value={demoForm.creatorName}
+            onChange={(event) => handleFieldChange("creatorName", event.target.value)}
+            aria-invalid={Boolean(demoErrors.creatorName)}
+            placeholder="Your artist name"
+          />
+          {demoErrors.creatorName ? <small className="field-error">{demoErrors.creatorName}</small> : null}
+        </label>
+
+        <label className="field">
+          <span>Professional title</span>
+          <input
+            value={demoForm.professionalTitle}
+            onChange={(event) => handleFieldChange("professionalTitle", event.target.value)}
+            aria-invalid={Boolean(demoErrors.professionalTitle)}
+            placeholder="Creative Director"
+          />
+          {demoErrors.professionalTitle ? <small className="field-error">{demoErrors.professionalTitle}</small> : null}
+        </label>
+
+        <label className="field field-wide">
+          <span>Short bio</span>
+          <textarea
+            value={demoForm.bio}
+            onChange={(event) => handleFieldChange("bio", event.target.value)}
+            aria-invalid={Boolean(demoErrors.bio)}
+            placeholder="Describe your creative focus and strengths"
+          />
+          {demoErrors.bio ? <small className="field-error">{demoErrors.bio}</small> : null}
+        </label>
+
+        <label className="field">
+          <span>Location</span>
+          <input
+            value={demoForm.location}
+            onChange={(event) => handleFieldChange("location", event.target.value)}
+            aria-invalid={Boolean(demoErrors.location)}
+            placeholder="Berlin, DE"
+          />
+          {demoErrors.location ? <small className="field-error">{demoErrors.location}</small> : null}
+        </label>
+
+        <label className="field">
+          <span>Email</span>
+          <input
+            type="email"
+            value={demoForm.email}
+            onChange={(event) => handleFieldChange("email", event.target.value)}
+            aria-invalid={Boolean(demoErrors.email)}
+            placeholder="name@example.com"
+          />
+          {demoErrors.email ? <small className="field-error">{demoErrors.email}</small> : null}
+        </label>
+
+        <label className="field field-wide">
+          <span>Portfolio URL</span>
+          <input
+            type="url"
+            value={demoForm.portfolioUrl}
+            onChange={(event) => handleFieldChange("portfolioUrl", event.target.value)}
+            aria-invalid={Boolean(demoErrors.portfolioUrl)}
+            placeholder="https://yourportfolio.com"
+          />
+          {demoErrors.portfolioUrl ? <small className="field-error">{demoErrors.portfolioUrl}</small> : null}
+        </label>
+
+        <label className="field field-wide">
+          <span>Social/profile URL</span>
+          <input
+            type="url"
+            value={demoForm.socialUrl}
+            onChange={(event) => handleFieldChange("socialUrl", event.target.value)}
+            aria-invalid={Boolean(demoErrors.socialUrl)}
+            placeholder="https://instagram.com/yourhandle"
+          />
+          {demoErrors.socialUrl ? <small className="field-error">{demoErrors.socialUrl}</small> : null}
+        </label>
+
+        <label className="field field-wide">
+          <span>Profile image URL</span>
+          <input
+            type="url"
+            value={demoForm.profileImageUrl}
+            onChange={(event) => handleFieldChange("profileImageUrl", event.target.value)}
+            aria-invalid={Boolean(demoErrors.profileImageUrl)}
+            placeholder="https://images.example.com/profile.jpg"
+          />
+          {demoErrors.profileImageUrl ? <small className="field-error">{demoErrors.profileImageUrl}</small> : null}
+        </label>
+      </div>
+    </div>
+  );
+
+  const renderCategoryStep = () => (
+    <div className="demo-step-body">
+      <div className="field">
+        <span>Category</span>
+        <div className="choice-grid">
+          {categoryOptions.map((category) => (
+            <button
+              key={category}
+              type="button"
+              className={`choice-button ${demoForm.category === category ? "active" : ""}`}
+              onClick={() => handleCategoryChange(category)}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
+        {demoErrors.category ? <small className="field-error">{demoErrors.category}</small> : null}
+      </div>
+
+      <label className="field">
+        <span>Specialty</span>
+        <input
+          list="specialty-options"
+          value={demoForm.specialty}
+          onChange={(event) => handleFieldChange("specialty", event.target.value)}
+          aria-invalid={Boolean(demoErrors.specialty)}
+          placeholder="Type your specialty"
+        />
+        <datalist id="specialty-options">
+          {specialtyOptions[demoForm.category].map((specialty) => (
+            <option key={specialty} value={specialty} />
+          ))}
+        </datalist>
+        {demoErrors.specialty ? <small className="field-error">{demoErrors.specialty}</small> : null}
+      </label>
+    </div>
+  );
+
+  const renderWorkStep = () => (
+    <div className="demo-step-body">
+      <div className="form-grid">
+        <label className="field field-wide">
+          <span>Featured project title</span>
+          <input
+            value={demoForm.projectTitle}
+            onChange={(event) => handleFieldChange("projectTitle", event.target.value)}
+            aria-invalid={Boolean(demoErrors.projectTitle)}
+            placeholder="Launch campaign systems redesign"
+          />
+          {demoErrors.projectTitle ? <small className="field-error">{demoErrors.projectTitle}</small> : null}
+        </label>
+
+        <label className="field field-wide">
+          <span>Project image URL</span>
+          <input
+            type="url"
+            value={demoForm.projectImageUrl}
+            onChange={(event) => handleFieldChange("projectImageUrl", event.target.value)}
+            aria-invalid={Boolean(demoErrors.projectImageUrl)}
+            placeholder="https://images.example.com/project.jpg"
+          />
+          {demoErrors.projectImageUrl ? <small className="field-error">{demoErrors.projectImageUrl}</small> : null}
+        </label>
+
+        <label className="field field-wide">
+          <span>Project/portfolio URL</span>
+          <input
+            type="url"
+            value={demoForm.projectUrl}
+            onChange={(event) => handleFieldChange("projectUrl", event.target.value)}
+            aria-invalid={Boolean(demoErrors.projectUrl)}
+            placeholder="https://yourproject.com"
+          />
+          {demoErrors.projectUrl ? <small className="field-error">{demoErrors.projectUrl}</small> : null}
+        </label>
+
+        <label className="field field-wide">
+          <span>Short project description</span>
+          <textarea
+            value={demoForm.projectDescription}
+            onChange={(event) => handleFieldChange("projectDescription", event.target.value)}
+            aria-invalid={Boolean(demoErrors.projectDescription)}
+            placeholder="Summarize the work and the result"
+          />
+          {demoErrors.projectDescription ? <small className="field-error">{demoErrors.projectDescription}</small> : null}
+        </label>
+      </div>
+
+      <div className="demo-preview-card">
+        <div className="preview-image-card">
+          <div
+            className="preview-art"
+            style={{
+              backgroundImage: demoForm.profileImageUrl
+                ? `linear-gradient(135deg, rgba(139, 61, 255, 0.22), rgba(0,0,0,0.04)), url(${demoForm.profileImageUrl})`
+                : "linear-gradient(135deg, rgba(139, 61, 255, 0.42), rgba(18, 18, 24, 0.2), rgba(255,255,255,0.08))",
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+            }}
+          />
+        </div>
+        <div className="preview-copy">
+          <div className="preview-topline">PREVIEW</div>
+          <h4>{demoForm.creatorName || "Creator Name"}</h4>
+          <p>{demoForm.professionalTitle || "Professional Title"}</p>
+          <div className="preview-meta">
+            <span>{demoForm.category}</span>
+            <span>{demoForm.specialty || "Specialty"}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
+  const renderPositionStep = () => (
+    <div className="demo-step-body">
+      <div className="position-summary-card">
+        <div>
+          <span>Current creator</span>
+          <strong>{demoForm.creatorName || "Your creator name"}</strong>
+        </div>
+        <div>
+          <span>Current bid</span>
+          <strong>{currentPositionData ? currentPositionData.bid : "—"}</strong>
+        </div>
+        <div>
+          <span>Minimum required</span>
+          <strong>{currentPositionData ? formatCurrencyCompact(currentPositionData.minimumRequired) : "—"}</strong>
+        </div>
+      </div>
+
+      <div className="position-grid">
+        {liveBids.map((entry) => (
+          <button
+            key={entry.rank}
+            type="button"
+            className={`position-option ${demoForm.desiredPosition === entry.rank ? "selected" : ""}`}
+            onClick={() => {
+              setDemoForm((previous) => ({
+                ...previous,
+                desiredPosition: entry.rank,
+                bidAmount: previous.bidAmount || String(entry.minimumRequired),
+              }));
+              setDemoErrors((previous) => ({
+                ...previous,
+                desiredPosition: "",
+              }));
+            }}
+          >
+            <div className="position-option-top">
+              <span>#{entry.rank}</span>
+              <span className="position-badge">TAKE #{entry.rank}</span>
+            </div>
+            <div className="position-option-name">{entry.name}</div>
+            <div className="position-option-meta">
+              <span>Current bid</span>
+              <strong>{entry.bid}</strong>
+            </div>
+            <div className="position-option-meta">
+              <span>Minimum required</span>
+              <strong>{formatCurrencyCompact(entry.minimumRequired)}</strong>
+            </div>
+          </button>
+        ))}
+      </div>
+
+      {demoErrors.desiredPosition ? <small className="field-error">{demoErrors.desiredPosition}</small> : null}
+    </div>
+  );
+
+  const renderReviewStep = () => {
+    const selectedPosition = currentPositionData;
+
+    return (
+      <div className="demo-step-body">
+        <div className="review-grid">
+          <div className="review-item">
+            <span>Creator</span>
+            <strong>{demoForm.creatorName}</strong>
+          </div>
+          <div className="review-item">
+            <span>Category</span>
+            <strong>{demoForm.category}</strong>
+          </div>
+          <div className="review-item">
+            <span>Specialty</span>
+            <strong>{demoForm.specialty}</strong>
+          </div>
+          <div className="review-item">
+            <span>Desired ranking position</span>
+            <strong>#{demoForm.desiredPosition}</strong>
+          </div>
+          <div className="review-item">
+            <span>Current bid</span>
+            <strong>{selectedPosition ? selectedPosition.bid : "—"}</strong>
+          </div>
+          <div className="review-item">
+            <span>Minimum required bid</span>
+            <strong>{selectedPosition ? formatCurrencyCompact(selectedPosition.minimumRequired) : "—"}</strong>
+          </div>
+        </div>
+
+        <label className="field">
+          <span>Demo bid amount</span>
+          <input
+            type="number"
+            min={selectedPosition?.minimumRequired ?? 0}
+            value={demoForm.bidAmount}
+            onChange={(event) => handleFieldChange("bidAmount", event.target.value)}
+            aria-invalid={Boolean(demoErrors.bidAmount)}
+            placeholder={String(selectedPosition?.minimumRequired ?? 0)}
+          />
+          <small className="field-hint">Must be equal to or greater than {selectedPosition ? formatCurrencyCompact(selectedPosition.minimumRequired) : "$0"}.</small>
+          {demoErrors.bidAmount ? <small className="field-error">{demoErrors.bidAmount}</small> : null}
+        </label>
+      </div>
+    );
+  };
+
+  const renderSuccessStep = () => (
+    <div className="demo-step-body success-step">
+      <div className="success-badge">ESTÁS EN EL RANKING</div>
+      <h4>{demoSuccess?.creatorName}</h4>
+      <p>
+        Nueva posición simulada: <strong>#{demoSuccess?.position}</strong>
+      </p>
+      <p>
+        Oferta confirmada: <strong>{demoSuccess ? formatCurrencyCompact(demoSuccess.bidAmount) : "$0"}</strong>
+      </p>
+      <p>
+        Creador: <strong>{demoSuccess?.creatorName}</strong>
+      </p>
+      <div className="success-meta">
+        <span>{demoSuccess?.category}</span>
+        <span>{demoSuccess?.specialty}</span>
+      </div>
+    </div>
+  );
+
   return (
     <div className="page-shell">
       <header className="topbar">
@@ -60,13 +712,15 @@ export default function Home() {
 
         <nav className="nav" aria-label="Main navigation">
           {navItems.map((item) => (
-            <a key={item} href="#" className="nav-link">
-              {item}
+            <a key={item.id} href={`#${item.id}`} className="nav-link">
+              {item.label}
             </a>
           ))}
         </nav>
 
-        <button className="primary-button button-medium">JOIN THE RANKING</button>
+        <button className="primary-button button-medium" onClick={() => openDemoFlow()}>
+          JOIN THE RANKING
+        </button>
       </header>
 
       <main>
@@ -83,8 +737,12 @@ export default function Home() {
             </p>
 
             <div className="hero-actions">
-              <button className="primary-button">ENTER THE RANKING</button>
-              <button className="secondary-button">DISCOVER TALENT</button>
+              <button className="primary-button" onClick={() => openDemoFlow()}>
+                ENTER THE RANKING
+              </button>
+              <button className="secondary-button" onClick={() => scrollToSection("trending")}>
+                DISCOVER TALENT
+              </button>
             </div>
           </div>
 
@@ -126,7 +784,9 @@ export default function Home() {
               <div className="section-kicker">LIVE BIDS</div>
               <h3>Round closes in</h3>
             </div>
-            <div className="countdown">48:14:09</div>
+            <div className="countdown" aria-live="polite">
+              {countdown}
+            </div>
           </div>
 
           <div className="bid-layout">
@@ -146,7 +806,14 @@ export default function Home() {
                     </div>
                     <div className="rank-cell bid-value">{entry.bid}</div>
                     <div className="rank-cell score-value">{entry.score}</div>
-                    <button className="take-button">TAKE #{entry.rank}</button>
+                    <button
+                      className="take-button"
+                      onClick={() => {
+                        setSelectedBid(entry);
+                      }}
+                    >
+                      TAKE #{entry.rank}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -228,12 +895,33 @@ export default function Home() {
           </div>
         </section>
 
+        <section className="section-block how-it-works-block" id="how-it-works">
+          <div className="section-header compact">
+            <div>
+              <div className="section-kicker">HOW IT WORKS</div>
+              <h3>Three steps to the top</h3>
+            </div>
+          </div>
+
+          <div className="how-it-works-grid">
+            {howItWorksSteps.map((step) => (
+              <article key={step.step} className="how-it-works-card">
+                <div className="how-it-works-step">{step.step}</div>
+                <h4>{step.title}</h4>
+                <p>{step.text}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
         <section className="cta-panel">
           <div>
             <div className="section-kicker">ARE YOU A CREATIVE?</div>
             <h3>Get seen. Prove your work. Earn your rank.</h3>
           </div>
-          <button className="primary-button">JOIN THE NEXT ROUND</button>
+          <button className="primary-button" onClick={() => openDemoFlow()}>
+            JOIN THE NEXT ROUND
+          </button>
         </section>
       </main>
 
@@ -253,6 +941,122 @@ export default function Home() {
           <a href="#">Contact</a>
         </div>
       </footer>
+
+      {selectedBid && (
+        <div className="bid-modal-backdrop" onClick={() => setSelectedBid(null)}>
+          <div
+            className="bid-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="bid-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button className="modal-close" onClick={() => setSelectedBid(null)} aria-label="Close bid modal">
+              ×
+            </button>
+            <div className="section-kicker">TAKE POSITION</div>
+            <h4 id="bid-modal-title">Creator position #{selectedBid.rank}</h4>
+
+            <div className="modal-details">
+              <div>
+                <span>Creator</span>
+                <strong>{selectedBid.name}</strong>
+              </div>
+              <div>
+                <span>Current bid</span>
+                <strong>{selectedBid.bid}</strong>
+              </div>
+              <div>
+                <span>Minimum amount required</span>
+                <strong>{formatCurrencyCompact(selectedBid.minimumRequired)}</strong>
+              </div>
+            </div>
+
+            <button
+              className="primary-button modal-button"
+              onClick={() => {
+                setSelectedBid(null);
+                openDemoFlow(selectedBid.rank);
+              }}
+            >
+              CONTINUE TO BID
+            </button>
+          </div>
+        </div>
+      )}
+
+      {demoFlowOpen && (
+        <div className="demo-modal-backdrop" onClick={() => setDemoFlowOpen(false)}>
+          <div
+            className="demo-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="demo-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="demo-modal-header">
+              <div>
+                <div className="section-kicker">JOIN THE RANKING</div>
+                <h3 id="demo-modal-title">Create your demo profile</h3>
+              </div>
+              <button className="modal-close" onClick={() => setDemoFlowOpen(false)} aria-label="Close creator flow modal">
+                ×
+              </button>
+            </div>
+
+            <div className="demo-progress" aria-live="polite">
+              PASO {demoStep} DE 6
+            </div>
+            <div className="demo-progress-bar" aria-hidden="true">
+              <span style={{ width: `${(demoStep / 6) * 100}%` }} />
+            </div>
+
+            {demoStep === 1 && renderProfileStep()}
+            {demoStep === 2 && renderCategoryStep()}
+            {demoStep === 3 && renderWorkStep()}
+            {demoStep === 4 && renderPositionStep()}
+            {demoStep === 5 && renderReviewStep()}
+            {demoStep === 6 && renderSuccessStep()}
+
+            {demoStep < 6 && (
+              <div className="modal-actions">
+                <button className="secondary-button" type="button" onClick={handleDemoBack} disabled={demoStep === 1}>
+                  Atrás
+                </button>
+                <button className="primary-button" type="button" onClick={handleDemoNext}>
+                  Continuar
+                </button>
+              </div>
+            )}
+
+            {demoStep === 6 && (
+              <div className="modal-actions success-actions">
+                <button
+                  className="primary-button"
+                  type="button"
+                  onClick={() => {
+                    setDemoFlowOpen(false);
+                    scrollToSection("live-bids");
+                  }}
+                >
+                  VER CLASIFICACIÓN EN VIVO
+                </button>
+              </div>
+            )}
+
+            {demoStep === 5 && (
+              <div className="modal-actions confirm-actions">
+                <button className="secondary-button" type="button" onClick={handleDemoBack}>
+                  Atrás
+                </button>
+                <button className="primary-button" type="button" onClick={handleDemoConfirm}>
+                  CONFIRMAR OFERTA DE DEMO
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
