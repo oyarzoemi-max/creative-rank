@@ -66,16 +66,16 @@ const conceptCards = [
 ];
 
 const baseLiveBids: BidEntry[] = [
-  { rank: 1, name: "Aster Vale", specialty: "Motion Design", bid: "$18.4K", bidValue: 18400, score: "96.8", minimumRequired: 19600 },
-  { rank: 2, name: "Nova Kline", specialty: "Brand Systems", bid: "$16.1K", bidValue: 16100, score: "95.6", minimumRequired: 17100 },
-  { rank: 3, name: "Luma Reed", specialty: "3D Illustration", bid: "$15.7K", bidValue: 15700, score: "94.9", minimumRequired: 16800 },
-  { rank: 4, name: "Kiro Sato", specialty: "Product Storytelling", bid: "$14.8K", bidValue: 14800, score: "93.7", minimumRequired: 15800 },
-  { rank: 5, name: "Zee Sol", specialty: "Campaign Art", bid: "$13.9K", bidValue: 13900, score: "92.4", minimumRequired: 14900 },
-  { rank: 6, name: "Rae Moss", specialty: "Editorial Design", bid: "$12.6K", bidValue: 12600, score: "91.3", minimumRequired: 13400 },
-  { rank: 7, name: "Iris Noon", specialty: "AI Visuals", bid: "$11.3K", bidValue: 11300, score: "90.8", minimumRequired: 12100 },
-  { rank: 8, name: "Juno Faye", specialty: "Brand Film", bid: "$10.9K", bidValue: 10900, score: "89.2", minimumRequired: 11600 },
-  { rank: 9, name: "Milo Hart", specialty: "UX Motion", bid: "$9.8K", bidValue: 9800, score: "88.6", minimumRequired: 10400 },
-  { rank: 10, name: "Sora Venn", specialty: "Packaging Design", bid: "$9.2K", bidValue: 9200, score: "87.9", minimumRequired: 9800 },
+  { rank: 1, name: "Juan", specialty: "Brand Systems", bid: "$20.0K", bidValue: 20000, score: "98.7", minimumRequired: 21000 },
+  { rank: 2, name: "Aster Vale", specialty: "Motion Design", bid: "$18.4K", bidValue: 18400, score: "96.8", minimumRequired: 19600 },
+  { rank: 3, name: "Nova Kline", specialty: "Brand Systems", bid: "$16.1K", bidValue: 16100, score: "95.6", minimumRequired: 17100 },
+  { rank: 4, name: "Luma Reed", specialty: "3D Illustration", bid: "$15.7K", bidValue: 15700, score: "94.9", minimumRequired: 16800 },
+  { rank: 5, name: "Kiro Sato", specialty: "Product Storytelling", bid: "$14.8K", bidValue: 14800, score: "93.7", minimumRequired: 15800 },
+  { rank: 6, name: "Zee Sol", specialty: "Campaign Art", bid: "$13.9K", bidValue: 13900, score: "92.4", minimumRequired: 14900 },
+  { rank: 7, name: "Rae Moss", specialty: "Editorial Design", bid: "$12.6K", bidValue: 12600, score: "91.3", minimumRequired: 13400 },
+  { rank: 8, name: "Iris Noon", specialty: "AI Visuals", bid: "$11.3K", bidValue: 11300, score: "90.8", minimumRequired: 12100 },
+  { rank: 9, name: "Juno Faye", specialty: "Brand Film", bid: "$10.9K", bidValue: 10900, score: "89.2", minimumRequired: 11600 },
+  { rank: 10, name: "Milo Hart", specialty: "UX Motion", bid: "$9.8K", bidValue: 9800, score: "88.6", minimumRequired: 10400 },
 ];
 
 const howItWorksSteps = [
@@ -466,7 +466,7 @@ export default function Home() {
         return;
       }
 
-      const { error: insertError } = await supabase.from("creators").insert([
+      const { error: upsertError } = await supabase.from("creators").upsert(
         {
           user_id: user.id,
           name: demoForm.creatorName.trim(),
@@ -480,10 +480,11 @@ export default function Home() {
           category: demoForm.category,
           specialty: demoForm.specialty.trim() || demoForm.category,
         },
-      ]);
+        { onConflict: "user_id" },
+      );
 
-      if (insertError) {
-        throw new Error(insertError.message);
+      if (upsertError) {
+        throw new Error(upsertError.message);
       }
 
       const targetRank = demoForm.desiredPosition;
