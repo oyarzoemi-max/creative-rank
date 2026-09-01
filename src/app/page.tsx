@@ -203,10 +203,6 @@ export default function Home() {
   const [demoSuccess, setDemoSuccess] = useState<DemoSuccessState | null>(null);
 
   const totalDemoSteps = 6;
-  const currentDemoStep = Math.min(Math.max(demoStep, 1), totalDemoSteps);
-  const demoProgressPercent = (currentDemoStep / totalDemoSteps) * 100;
-
-  const normalizeDemoStep = (value: number) => Math.min(totalDemoSteps, Math.max(1, value));
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -411,11 +407,11 @@ export default function Home() {
       return;
     }
 
-    setDemoStep((previous) => normalizeDemoStep(previous + 1));
+    setDemoStep((previous) => Math.min(previous + 1, totalDemoSteps));
   };
 
   const handleDemoBack = () => {
-    setDemoStep((previous) => normalizeDemoStep(previous - 1));
+    setDemoStep((previous) => Math.max(previous - 1, 1));
   };
 
   const handleDemoConfirm = async () => {
@@ -1229,22 +1225,22 @@ export default function Home() {
             </div>
 
             <div className="demo-progress" aria-live="polite">
-              PASO {currentDemoStep} DE {totalDemoSteps}
+              PASO {demoStep} DE {totalDemoSteps}
             </div>
             <div className="demo-progress-bar" aria-hidden="true">
-              <span style={{ width: `${demoProgressPercent}%` }} />
+              <span style={{ width: `${(demoStep / totalDemoSteps) * 100}%` }} />
             </div>
 
-            {currentDemoStep === 1 && renderProfileStep()}
-            {currentDemoStep === 2 && renderCategoryStep()}
-            {currentDemoStep === 3 && renderWorkStep()}
-            {currentDemoStep === 4 && renderPositionStep()}
-            {currentDemoStep === 5 && renderReviewStep()}
-            {currentDemoStep === 6 && renderSuccessStep()}
+            {demoStep === 1 && renderProfileStep()}
+            {demoStep === 2 && renderCategoryStep()}
+            {demoStep === 3 && renderWorkStep()}
+            {demoStep === 4 && renderPositionStep()}
+            {demoStep === 5 && renderReviewStep()}
+            {demoStep === 6 && renderSuccessStep()}
 
-            {currentDemoStep < totalDemoSteps && (
+            {demoStep < totalDemoSteps && (
               <div className="modal-actions">
-                <button className="secondary-button" type="button" onClick={handleDemoBack} disabled={currentDemoStep === 1}>
+                <button className="secondary-button" type="button" onClick={handleDemoBack} disabled={demoStep === 1}>
                   Atrás
                 </button>
                 <button className="primary-button" type="button" onClick={handleDemoNext}>
@@ -1253,7 +1249,7 @@ export default function Home() {
               </div>
             )}
 
-            {currentDemoStep === 6 && (
+            {demoStep === 6 && (
               <div className="modal-actions success-actions">
                 <button
                   className="primary-button"
@@ -1268,7 +1264,7 @@ export default function Home() {
               </div>
             )}
 
-            {currentDemoStep === 5 && (
+            {demoStep === 5 && (
               <div className="modal-actions confirm-actions">
                 <button className="secondary-button" type="button" onClick={handleDemoBack}>
                   Atrás
