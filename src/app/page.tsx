@@ -415,9 +415,8 @@ export default function Home() {
   };
 
   const handleDemoConfirm = async () => {
-    if (!validateCurrentStep()) {
-      return;
-    }
+    const bidValue = Number(demoForm.bidAmount);
+    const minimumRequired = currentPositionData?.minimumRequired ?? 0;
 
     if (!demoForm.desiredPosition || !currentPositionData) {
       setDemoErrors((previous) => ({
@@ -425,6 +424,26 @@ export default function Home() {
         desiredPosition: "Select a desired position before confirming.",
       }));
       setDemoStep(4);
+      return;
+    }
+
+    if (!demoForm.bidAmount.trim()) {
+      setDemoErrors((previous) => ({
+        ...previous,
+        bidAmount: "Enter a demo bid amount.",
+      }));
+      return;
+    }
+
+    if (Number.isNaN(bidValue) || bidValue < minimumRequired) {
+      setDemoErrors((previous) => ({
+        ...previous,
+        bidAmount: `Bid must be at least ${formatCurrencyCompact(minimumRequired)}.`,
+      }));
+      return;
+    }
+
+    if (!validateCurrentStep()) {
       return;
     }
 
@@ -471,7 +490,6 @@ export default function Home() {
       return;
     }
 
-    const bidValue = Number(demoForm.bidAmount);
     const targetRank = demoForm.desiredPosition;
     const demoEntry: BidEntry = {
       rank: targetRank,
