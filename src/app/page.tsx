@@ -339,6 +339,7 @@ export default function Home() {
     setDemoErrors((previous) => ({
       ...previous,
       [field]: "",
+      submit: "",
     }));
   };
 
@@ -422,6 +423,7 @@ export default function Home() {
       setDemoErrors((previous) => ({
         ...previous,
         desiredPosition: "Select a desired position before confirming.",
+        submit: "",
       }));
       setDemoStep(4);
       return;
@@ -431,6 +433,7 @@ export default function Home() {
       setDemoErrors((previous) => ({
         ...previous,
         bidAmount: "Enter a demo bid amount.",
+        submit: "",
       }));
       return;
     }
@@ -439,6 +442,7 @@ export default function Home() {
       setDemoErrors((previous) => ({
         ...previous,
         bidAmount: `Bid must be at least ${formatCurrencyCompact(minimumRequired)}.`,
+        submit: "",
       }));
       return;
     }
@@ -456,7 +460,12 @@ export default function Home() {
       } = await supabase.auth.getUser();
 
       if (userError || !user) {
-        setAuthError("Your session expired. Please sign in again.");
+        const authMessage = "Your session expired. Please sign in again.";
+        setAuthError(authMessage);
+        setDemoErrors((previous) => ({
+          ...previous,
+          submit: authMessage,
+        }));
         setAuthModalOpen(true);
         return;
       }
@@ -478,57 +487,57 @@ export default function Home() {
       ]);
 
       if (insertError) {
-        console.error("Supabase insert failed for creators:", insertError);
-        setDemoErrors({
-          ...demoErrors,
-          submit: insertError.message,
-        });
-        return;
+        throw new Error(insertError.message);
       }
+
+      const targetRank = demoForm.desiredPosition;
+      const demoEntry: BidEntry = {
+        rank: targetRank,
+        name: demoForm.creatorName.trim(),
+        specialty: demoForm.specialty.trim() || demoForm.category,
+        bid: formatCurrencyCompact(bidValue),
+        bidValue,
+        score: "NEW",
+        minimumRequired: currentPositionData.minimumRequired,
+      };
+
+      const nextList = [...liveBids];
+      const targetIndex = targetRank - 1;
+      const shifted = nextList.map((entry, index) => {
+        if (index === targetIndex) {
+          return demoEntry;
+        }
+
+        if (index > targetIndex) {
+          return nextList[index - 1];
+        }
+
+        return entry;
+      }).slice(0, 10).map((entry, index) => ({
+        ...entry,
+        rank: index + 1,
+      }));
+
+      const successSnapshot: DemoSuccessState = {
+        creatorName: demoForm.creatorName.trim(),
+        position: targetRank,
+        category: demoForm.category,
+        specialty: demoForm.specialty.trim() || demoForm.category,
+        bidAmount: bidValue,
+      };
+
+      setLiveBids(shifted);
+      setDemoSuccess(successSnapshot);
+      setDemoStep(6);
     } catch (error) {
+      const message = error instanceof Error ? error.message : "Could not confirm the demo bid.";
       console.error("Unexpected error saving creator profile:", error);
+      setDemoErrors((previous) => ({
+        ...previous,
+        submit: message,
+      }));
       return;
     }
-
-    const targetRank = demoForm.desiredPosition;
-    const demoEntry: BidEntry = {
-      rank: targetRank,
-      name: demoForm.creatorName.trim(),
-      specialty: demoForm.specialty.trim() || demoForm.category,
-      bid: formatCurrencyCompact(bidValue),
-      bidValue,
-      score: "NEW",
-      minimumRequired: currentPositionData.minimumRequired,
-    };
-
-    const nextList = [...liveBids];
-    const targetIndex = targetRank - 1;
-    const shifted = nextList.map((entry, index) => {
-      if (index === targetIndex) {
-        return demoEntry;
-      }
-
-      if (index > targetIndex) {
-        return nextList[index - 1];
-      }
-
-      return entry;
-    }).slice(0, 10).map((entry, index) => ({
-      ...entry,
-      rank: index + 1,
-    }));
-
-    const successSnapshot: DemoSuccessState = {
-      creatorName: demoForm.creatorName.trim(),
-      position: targetRank,
-      category: demoForm.category,
-      specialty: demoForm.specialty.trim() || demoForm.category,
-      bidAmount: bidValue,
-    };
-
-    setLiveBids(shifted);
-    setDemoSuccess(successSnapshot);
-    setDemoStep(6);
   };
 
   const renderProfileStep = () => (
@@ -843,6 +852,7 @@ export default function Home() {
           />
           <small className="field-hint">Must be equal to or greater than {selectedPosition ? formatCurrencyCompact(selectedPosition.minimumRequired) : "$0"}.</small>
           {demoErrors.bidAmount ? <small className="field-error">{demoErrors.bidAmount}</small> : null}
+          {demoErrors.submit ? <small className="field-error">{demoErrors.submit}</small> : null}
         </label>
       </div>
     );
