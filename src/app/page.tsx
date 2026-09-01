@@ -78,27 +78,6 @@ const baseLiveBids: BidEntry[] = [
   { rank: 10, name: "Sora Venn", specialty: "Packaging Design", bid: "$9.2K", bidValue: 9200, score: "87.9", minimumRequired: 9800 },
 ];
 
-const showcaseCards = [
-  { name: "Aster Vale", specialty: "Motion Design", score: "96.8" },
-  { name: "Nova Kline", specialty: "Brand Systems", score: "95.6" },
-  { name: "Luma Reed", specialty: "3D Illustration", score: "94.9" },
-  { name: "Kiro Sato", specialty: "Product Storytelling", score: "93.7" },
-  { name: "Zee Sol", specialty: "Campaign Art", score: "92.4" },
-  { name: "Rae Moss", specialty: "Editorial Design", score: "91.3" },
-  { name: "Iris Noon", specialty: "AI Visuals", score: "90.8" },
-  { name: "Juno Faye", specialty: "Brand Film", score: "89.2" },
-  { name: "Milo Hart", specialty: "UX Motion", score: "88.6" },
-  { name: "Sora Venn", specialty: "Packaging Design", score: "87.9" },
-];
-
-const trendingCreators = [
-  { rank: 1, name: "Aster Vale", specialty: "Motion Design", score: 96.8 },
-  { rank: 2, name: "Nova Kline", specialty: "Brand Systems", score: 95.6 },
-  { rank: 3, name: "Luma Reed", specialty: "3D Illustration", score: 94.9 },
-  { rank: 4, name: "Kiro Sato", specialty: "Product Storytelling", score: 93.7 },
-  { rank: 5, name: "Zee Sol", specialty: "Campaign Art", score: 92.4 },
-];
-
 const howItWorksSteps = [
   {
     step: "01",
@@ -229,6 +208,23 @@ export default function Home() {
   const countdown = useMemo(
     () => formatCountdown(Math.max(deadline - now, 0)),
     [deadline, now],
+  );
+
+  const currentLeader = useMemo(() => liveBids[0] ?? baseLiveBids[0], [liveBids]);
+
+  const showcaseCards = useMemo(
+    () => liveBids.map(({ name, specialty, score }) => ({ name, specialty, score })),
+    [liveBids],
+  );
+
+  const trendingCreators = useMemo(
+    () => liveBids.slice(0, 5).map((creator, index) => ({
+      rank: index + 1,
+      name: creator.name,
+      specialty: creator.specialty,
+      score: Number.parseFloat(creator.score) || 0,
+    })),
+    [liveBids],
   );
 
   const currentPositionData = demoForm.desiredPosition
@@ -957,16 +953,16 @@ export default function Home() {
                 <span className="mini-label">TOP CREATOR</span>
                 <span className="mini-pill">LIVE</span>
               </div>
-              <h2>Aster Vale</h2>
-              <p>Motion Design</p>
+              <h2>{currentLeader.name}</h2>
+              <p>{currentLeader.specialty}</p>
               <div className="mini-stats">
                 <div>
                   <span>Attention</span>
-                  <strong>96.8</strong>
+                  <strong>{currentLeader.score}</strong>
                 </div>
                 <div>
                   <span>Bid</span>
-                  <strong>$18.4K</strong>
+                  <strong>{currentLeader.bid}</strong>
                 </div>
               </div>
             </div>
@@ -1025,16 +1021,16 @@ export default function Home() {
 
             <aside className="leader-panel">
               <div className="leader-topline">CURRENT LEADER</div>
-              <h4>Aster Vale</h4>
-              <p>Motion Design / Campaign Systems</p>
+              <h4>{currentLeader.name}</h4>
+              <p>{currentLeader.specialty}</p>
               <div className="leader-metrics">
                 <div>
                   <span>Attention Score</span>
-                  <strong>96.8</strong>
+                  <strong>{currentLeader.score}</strong>
                 </div>
                 <div>
                   <span>Bid Active</span>
-                  <strong>$18.4K</strong>
+                  <strong>{currentLeader.bid}</strong>
                 </div>
               </div>
               <div className="leader-visual">
