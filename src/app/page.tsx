@@ -500,14 +500,16 @@ export default function Home() {
       rank: index + 1,
     }));
 
-    setLiveBids(shifted);
-    setDemoSuccess({
+    const successSnapshot: DemoSuccessState = {
       creatorName: demoForm.creatorName.trim(),
       position: targetRank,
       category: demoForm.category,
       specialty: demoForm.specialty.trim() || demoForm.category,
       bidAmount: bidValue,
-    });
+    };
+
+    setLiveBids(shifted);
+    setDemoSuccess(successSnapshot);
     setDemoStep(6);
   };
 
@@ -828,25 +830,35 @@ export default function Home() {
     );
   };
 
-  const renderSuccessStep = () => (
-    <div className="demo-step-body success-step">
-      <div className="success-badge">ESTÁS EN EL RANKING</div>
-      <h4>{demoSuccess?.creatorName}</h4>
-      <p>
-        Nueva posición simulada: <strong>#{demoSuccess?.position}</strong>
-      </p>
-      <p>
-        Oferta confirmada: <strong>{demoSuccess ? formatCurrencyCompact(demoSuccess.bidAmount) : "$0"}</strong>
-      </p>
-      <p>
-        Creador: <strong>{demoSuccess?.creatorName}</strong>
-      </p>
-      <div className="success-meta">
-        <span>{demoSuccess?.category}</span>
-        <span>{demoSuccess?.specialty}</span>
+  const renderSuccessStep = () => {
+    const successData: DemoSuccessState = demoSuccess ?? {
+      creatorName: demoForm.creatorName.trim(),
+      position: demoForm.desiredPosition ?? 1,
+      category: demoForm.category,
+      specialty: demoForm.specialty.trim() || demoForm.category,
+      bidAmount: Number(demoForm.bidAmount || 0),
+    };
+
+    return (
+      <div className="demo-step-body success-step">
+        <div className="success-badge">ESTÁS EN EL RANKING</div>
+        <h4>{successData.creatorName}</h4>
+        <p>
+          Nueva posición simulada: <strong>#{successData.position}</strong>
+        </p>
+        <p>
+          Oferta confirmada: <strong>{formatCurrencyCompact(successData.bidAmount)}</strong>
+        </p>
+        <p>
+          Creador: <strong>{successData.creatorName}</strong>
+        </p>
+        <div className="success-meta">
+          <span>{successData.category}</span>
+          <span>{successData.specialty}</span>
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
     <div className="page-shell">
@@ -1238,7 +1250,7 @@ export default function Home() {
             {demoStep === 5 && renderReviewStep()}
             {demoStep === 6 && renderSuccessStep()}
 
-            {demoStep < totalDemoSteps && (
+            {demoStep >= 1 && demoStep <= 4 && (
               <div className="modal-actions">
                 <button className="secondary-button" type="button" onClick={handleDemoBack} disabled={demoStep === 1}>
                   Atrás
