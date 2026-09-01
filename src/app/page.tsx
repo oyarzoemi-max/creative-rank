@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useState } from "react";
+import type { Session } from "@supabase/supabase-js";
+import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
 type Category = "DESIGN" | "COPY" | "BUILD";
 
@@ -186,6 +188,14 @@ export default function Home() {
   const [now, setNow] = useState(Date.now());
   const [liveBids, setLiveBids] = useState<BidEntry[]>(baseLiveBids);
   const [selectedBid, setSelectedBid] = useState<BidEntry | null>(null);
+  const [session, setSession] = useState<Session | null>(null);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-up");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+  const [authInfo, setAuthInfo] = useState("");
   const [demoFlowOpen, setDemoFlowOpen] = useState(false);
   const [demoStep, setDemoStep] = useState(1);
   const [demoForm, setDemoForm] = useState<DemoFormState>(createDefaultDemoForm());
@@ -200,6 +210,20 @@ export default function Home() {
     return () => window.clearInterval(timer);
   }, []);
 
+  useEffect(() => {
+    const supabase = createSupabaseBrowserClient();
+
+    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
+      setSession(currentSession);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
+      setSession(currentSession);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
   const countdown = useMemo(
     () => formatCountdown(Math.max(deadline - now, 0)),
     [deadline, now],
@@ -210,6 +234,14 @@ export default function Home() {
     : null;
 
   const openDemoFlow = (preselectedPosition?: number) => {
+    if (!session) {
+      setAuthMode("sign-up");
+      setAuthError("");
+      setAuthInfo("");
+      setAuthModalOpen(true);
+      return;
+    }
+
     setDemoFlowOpen(true);
     setDemoStep(1);
     setDemoErrors({});
@@ -220,6 +252,80 @@ export default function Home() {
       bidAmount: preselectedPosition ? String(liveBids.find((entry) => entry.rank === preselectedPosition)?.minimumRequired ?? 0) : "",
     });
     setSelectedBid(null);
+  };
+
+  const handleAuthSubmit = async () => {
+    const email = authEmail.trim();
+    const password = authPassword.trim();
+
+    if (!email || !password) {
+      setAuthError("Email and password are required.");
+      return;
+    }
+
+    setAuthLoading(true);
+    setAuthError("");
+    setAuthInfo("");
+
+    try {
+      const supabase = createSupabaseBrowserClient();
+
+      if (authMode === "sign-up") {
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (signUpError) {
+          throw signUpError;
+        }
+
+        if (signUpData.session) {
+          setSession(signUpData.session);
+          setAuthModalOpen(false);
+          setAuthEmail("");
+          setAuthPassword("");
+          setSelectedBid(null);
+          setDemoFlowOpen(true);
+          setDemoStep(1);
+          setDemoErrors({});
+          setDemoSuccess(null);
+          setDemoForm(createDefaultDemoForm());
+          return;
+        }
+
+        setAuthInfo("Account created. Confirm your email if required, then sign in to continue.");
+        setAuthMode("sign-in");
+        return;
+      }
+
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (signInError) {
+        throw signInError;
+      }
+
+      setSession(signInData.session);
+      setAuthModalOpen(false);
+      setAuthEmail("");
+      setAuthPassword("");
+      setSelectedBid(null);
+      setDemoFlowOpen(true);
+      setDemoStep(1);
+      setDemoErrors({});
+      setDemoSuccess(null);
+      setDemoForm(createDefaultDemoForm());
+    } catch (error) {
+      console.error("Supabase auth failed:", error);
+      setAuthError(
+        error instanceof Error ? error.message : "Authentication failed. Please try again.",
+      );
+    } finally {
+      setAuthLoading(false);
+    }
   };
 
   const handleFieldChange = (field: keyof DemoFormState, value: string) => {
@@ -311,7 +417,7 @@ export default function Home() {
     }
   };
 
-  const handleDemoConfirm = () => {
+  const handleDemoConfirm = async () => {
     if (!validateCurrentStep()) {
       return;
     }
@@ -322,6 +428,49 @@ export default function Home() {
         desiredPosition: "Select a desired position before confirming.",
       }));
       setDemoStep(4);
+      return;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+
+    try {
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        setAuthError("Your session expired. Please sign in again.");
+        setAuthModalOpen(true);
+        return;
+      }
+
+      const { error: insertError } = await supabase.from("creators").insert([
+        {
+          user_id: user.id,
+          name: demoForm.creatorName.trim(),
+          professional_title: demoForm.professionalTitle.trim(),
+          bio: demoForm.bio.trim(),
+          location: demoForm.location.trim(),
+          email: demoForm.email.trim(),
+          portfolio_url: demoForm.portfolioUrl.trim(),
+          social_url: demoForm.socialUrl.trim(),
+          profile_image_url: demoForm.profileImageUrl.trim(),
+          category: demoForm.category,
+          specialty: demoForm.specialty.trim() || demoForm.category,
+        },
+      ]);
+
+      if (insertError) {
+        console.error("Supabase insert failed for creators:", insertError);
+        setDemoErrors({
+          ...demoErrors,
+          submit: insertError.message,
+        });
+        return;
+      }
+    } catch (error) {
+      console.error("Unexpected error saving creator profile:", error);
       return;
     }
 
@@ -718,9 +867,27 @@ export default function Home() {
           ))}
         </nav>
 
-        <button className="primary-button button-medium" onClick={() => openDemoFlow()}>
-          JOIN THE RANKING
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+          {session ? (
+            <button
+              className="secondary-button button-medium"
+              onClick={async () => {
+                const supabase = createSupabaseBrowserClient();
+                await supabase.auth.signOut();
+                setSession(null);
+              }}
+            >
+              LOG OUT
+            </button>
+          ) : (
+            <button className="secondary-button button-medium" onClick={() => setAuthModalOpen(true)}>
+              LOG IN
+            </button>
+          )}
+          <button className="primary-button button-medium" onClick={() => openDemoFlow()}>
+            JOIN THE RANKING
+          </button>
+        </div>
       </header>
 
       <main>
@@ -981,6 +1148,62 @@ export default function Home() {
             >
               CONTINUE TO BID
             </button>
+          </div>
+        </div>
+      )}
+
+      {authModalOpen && (
+        <div className="demo-modal-backdrop" onClick={() => setAuthModalOpen(false)}>
+          <div
+            className="demo-modal auth-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <div className="demo-modal-header">
+              <div>
+                <div className="section-kicker">ACCESS</div>
+                <h3 id="auth-modal-title">{authMode === "sign-up" ? "Create account" : "Sign in"}</h3>
+              </div>
+              <button className="modal-close" onClick={() => setAuthModalOpen(false)} aria-label="Close auth modal">
+                ×
+              </button>
+            </div>
+
+            <div className="form-grid" style={{ gridTemplateColumns: "1fr" }}>
+              <label className="field field-wide">
+                <span>Email</span>
+                <input
+                  type="email"
+                  value={authEmail}
+                  onChange={(event) => setAuthEmail(event.target.value)}
+                  placeholder="name@example.com"
+                />
+              </label>
+
+              <label className="field field-wide">
+                <span>Password</span>
+                <input
+                  type="password"
+                  value={authPassword}
+                  onChange={(event) => setAuthPassword(event.target.value)}
+                  placeholder="••••••••"
+                />
+              </label>
+            </div>
+
+            {authError ? <small className="field-error">{authError}</small> : null}
+            {authInfo ? <small className="field-hint">{authInfo}</small> : null}
+
+            <div className="modal-actions">
+              <button className="secondary-button" type="button" onClick={() => setAuthMode(authMode === "sign-up" ? "sign-in" : "sign-up")}>
+                {authMode === "sign-up" ? "Already have an account?" : "Need an account?"}
+              </button>
+              <button className="primary-button" type="button" onClick={handleAuthSubmit} disabled={authLoading}>
+                {authLoading ? "PLEASE WAIT..." : authMode === "sign-up" ? "CREATE ACCOUNT" : "SIGN IN"}
+              </button>
+            </div>
           </div>
         </div>
       )}

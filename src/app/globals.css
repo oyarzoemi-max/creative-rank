@@ -886,6 +886,10 @@ img {
   background: linear-gradient(135deg, var(--accent), #6d32d9);
 }
 
+.auth-modal {
+  width: min(100%, 480px);
+}
+
 .demo-step-body {
   display: grid;
   gap: 18px;
