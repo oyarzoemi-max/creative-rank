@@ -16,6 +16,30 @@ type BidEntry = {
   minimumRequired: number;
 };
 
+type RoundStatus = "upcoming" | "active" | "showcase" | "closed";
+
+type RoundRecord = {
+  id: string;
+  title?: string | null;
+  status: RoundStatus | string;
+  bidding_starts_at: string;
+  bidding_ends_at: string;
+  showcase_starts_at?: string | null;
+  showcase_ends_at?: string | null;
+  created_at?: string;
+};
+
+type ActiveBidRecord = {
+  id: string;
+  amount?: number | string | null;
+  bid_amount?: number | string | null;
+  rank?: number | null;
+  creators?: {
+    name?: string | null;
+    specialty?: string | null;
+  } | null;
+};
+
 type DemoFormState = {
   creatorName: string;
   professionalTitle: string;
@@ -142,6 +166,124 @@ const formatCountdown = (milliseconds: number) => {
     .join(":");
 };
 
+const DEFAULT_ROUND_DURATION_MS = 48 * 60 * 60 * 1000;
+
+const normalizeRoundStatus = (status?: string | null): RoundStatus => {
+  const normalized = status?.toLowerCase?.() ?? "upcoming";
+
+  if (normalized === "active") return "active";
+  if (normalized === "showcase") return "showcase";
+  if (normalized === "closed") return "closed";
+  return "upcoming";
+};
+
+const getRoundPhase = (round: RoundRecord | null): RoundStatus => {
+  if (!round) {
+    return "upcoming";
+  }
+
+  return normalizeRoundStatus(round.status);
+};
+
+const getRoundDeadline = (round: RoundRecord | null) => {
+  if (!round) {
+    return Date.now() + DEFAULT_ROUND_DURATION_MS;
+  }
+
+  const phase = getRoundPhase(round);
+  const timestamp =
+    phase === "showcase"
+      ? round.showcase_ends_at
+      : phase === "active"
+        ? round.bidding_ends_at
+        : phase === "upcoming"
+          ? round.bidding_starts_at
+          : round.bidding_ends_at;
+
+  if (!timestamp) {
+    return Date.now() + DEFAULT_ROUND_DURATION_MS;
+  }
+
+  const parsed = Number(new Date(timestamp).getTime());
+  if (Number.isFinite(parsed)) {
+    return parsed;
+  }
+
+  return Date.now() + DEFAULT_ROUND_DURATION_MS;
+};
+
+const normalizeBidEntries = (rows: ActiveBidRecord[] | null | undefined): BidEntry[] => {
+  if (!rows || rows.length === 0) {
+    return baseLiveBids;
+  }
+
+  return rows.slice(0, 10).map((row, index) => {
+    const amount = Number(row.amount ?? row.bid_amount ?? 0);
+
+    return {
+      rank: (row.rank && row.rank > 0 ? row.rank : index + 1),
+      name: row.creators?.name ?? `Creator ${index + 1}`,
+      specialty: row.creators?.specialty ?? "Creative",
+      bid: formatCurrencyCompact(amount),
+      bidValue: amount,
+      score: amount > 0 ? `${amount / 1000}`.slice(0, 4) : "NEW",
+      minimumRequired: Math.max(amount * 0.95, 1000),
+    };
+  });
+};
+
+const ensureActiveRound = async (): Promise<RoundRecord | null> => {
+  const supabase = createSupabaseBrowserClient();
+
+  try {
+    const { data: activeRounds, error: selectError } = await supabase
+      .from("rounds")
+      .select("*")
+      .eq("status", "active")
+      .order("bidding_starts_at", { ascending: false })
+      .limit(1);
+
+    if (selectError) {
+      console.warn("Supabase rounds table is not ready or not accessible yet:", selectError.message);
+      return null;
+    }
+
+    if (activeRounds && activeRounds.length > 0) {
+      return activeRounds[0] as RoundRecord;
+    }
+
+    const now = new Date();
+    const biddingStartsAt = new Date(now.getTime());
+    const biddingEndsAt = new Date(now.getTime() + DEFAULT_ROUND_DURATION_MS);
+    const showcaseStartsAt = new Date(biddingEndsAt.getTime());
+    const showcaseEndsAt = new Date(biddingEndsAt.getTime() + DEFAULT_ROUND_DURATION_MS);
+
+    const { data: insertedRound, error: insertError } = await supabase
+      .from("rounds")
+      .insert({
+        title: `Round ${new Date().toISOString().slice(0, 10)}`,
+        status: "active",
+        bidding_starts_at: biddingStartsAt.toISOString(),
+        bidding_ends_at: biddingEndsAt.toISOString(),
+        showcase_starts_at: showcaseStartsAt.toISOString(),
+        showcase_ends_at: showcaseEndsAt.toISOString(),
+        created_at: now.toISOString(),
+      })
+      .select("*")
+      .single();
+
+    if (insertError) {
+      console.warn("Could not create active round automatically:", insertError.message);
+      return null;
+    }
+
+    return insertedRound as RoundRecord;
+  } catch (error) {
+    console.warn("Round creation check failed:", error);
+    return null;
+  }
+};
+
 const isValidUrl = (value: string) => {
   if (!value.trim()) {
     return false;
@@ -163,7 +305,7 @@ const scrollToSection = (sectionId: string) => {
 };
 
 export default function Home() {
-  const [deadline] = useState(() => Date.now() + 48 * 60 * 60 * 1000);
+  const [activeRound, setActiveRound] = useState<RoundRecord | null>(null);
   const [now, setNow] = useState(Date.now());
   const [liveBids, setLiveBids] = useState<BidEntry[]>(baseLiveBids);
   const [selectedBid, setSelectedBid] = useState<BidEntry | null>(null);
@@ -204,6 +346,105 @@ export default function Home() {
 
     return () => subscription.unsubscribe();
   }, []);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadActiveRound = async () => {
+      const round = await ensureActiveRound();
+
+      if (!isMounted) {
+        return;
+      }
+
+      setActiveRound(round);
+    };
+
+    loadActiveRound();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!activeRound?.id) {
+      setLiveBids(baseLiveBids);
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadRoundBids = async () => {
+      const supabase = createSupabaseBrowserClient();
+
+      try {
+        const { data, error } = await supabase
+          .from("bids")
+          .select("*, creators(name, specialty)")
+          .eq("round_id", activeRound.id)
+          .order("amount", { ascending: false })
+          .limit(10);
+
+        if (error) {
+          console.warn("Round bids unavailable:", error.message);
+          if (isMounted) {
+            setLiveBids(baseLiveBids);
+          }
+          return;
+        }
+
+        if (!isMounted) {
+          return;
+        }
+
+        const nextBids = normalizeBidEntries(data as ActiveBidRecord[] | null);
+        setLiveBids(nextBids);
+      } catch (error) {
+        console.warn("Could not load round bids from Supabase:", error);
+        if (isMounted) {
+          setLiveBids(baseLiveBids);
+        }
+      }
+    };
+
+    loadRoundBids();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeRound]);
+
+  useEffect(() => {
+    if (!activeRound || getRoundPhase(activeRound) !== "active") {
+      return;
+    }
+
+    const deadline = getRoundDeadline(activeRound);
+
+    if (Date.now() >= deadline) {
+      const supabase = createSupabaseBrowserClient();
+      void (async () => {
+        const { error } = await supabase
+          .from("rounds")
+          .update({ status: "closed" })
+          .eq("id", activeRound.id);
+
+        if (error) {
+          console.warn("Could not close round automatically:", error.message);
+          return;
+        }
+
+        setActiveRound((currentRound) =>
+          currentRound && currentRound.id === activeRound.id
+            ? { ...currentRound, status: "closed" }
+            : currentRound,
+        );
+      })();
+    }
+  }, [activeRound, now]);
+
+  const deadline = useMemo(() => getRoundDeadline(activeRound), [activeRound]);
 
   const countdown = useMemo(
     () => formatCountdown(Math.max(deadline - now, 0)),
@@ -485,6 +726,30 @@ export default function Home() {
 
       if (upsertError) {
         throw new Error(upsertError.message);
+      }
+
+      const { data: creatorRow, error: creatorLookupError } = await supabase
+        .from("creators")
+        .select("id")
+        .eq("user_id", user.id)
+        .maybeSingle();
+
+      if (creatorLookupError) {
+        throw new Error(creatorLookupError.message);
+      }
+
+      if (activeRound?.id && creatorRow?.id) {
+        const { error: bidInsertError } = await supabase.from("bids").insert({
+          round_id: activeRound.id,
+          creator_id: creatorRow.id,
+          amount: bidValue,
+          payment_status: "pending",
+          created_at: new Date().toISOString(),
+        });
+
+        if (bidInsertError) {
+          console.warn("Bid could not be associated with the active round:", bidInsertError.message);
+        }
       }
 
       const targetRank = demoForm.desiredPosition;
