@@ -31,9 +31,7 @@ type RoundRecord = {
 
 type ActiveBidRecord = {
   id: string;
-  amount?: number | string | null;
-  bid_amount?: number | string | null;
-  rank?: number | null;
+  amount: number | string | null;
   creators?: {
     name?: string | null;
     specialty?: string | null;
@@ -214,14 +212,14 @@ const getRoundDeadline = (round: RoundRecord | null) => {
 
 const normalizeBidEntries = (rows: ActiveBidRecord[] | null | undefined): BidEntry[] => {
   if (!rows || rows.length === 0) {
-    return baseLiveBids;
+    return [];
   }
 
   return rows.slice(0, 10).map((row, index) => {
-    const amount = Number(row.amount ?? row.bid_amount ?? 0);
+    const amount = Number(row.amount ?? 0);
 
     return {
-      rank: (row.rank && row.rank > 0 ? row.rank : index + 1),
+      rank: index + 1,
       name: row.creators?.name ?? `Creator ${index + 1}`,
       specialty: row.creators?.specialty ?? "Creative",
       bid: formatCurrencyCompact(amount),
@@ -236,15 +234,15 @@ const ensureActiveRound = async (): Promise<RoundRecord | null> => {
   const supabase = createSupabaseBrowserClient();
 
   try {
-    const { data: activeRounds, error: selectError } = await supabase
+    const { data: activeRounds, error: activeSelectError } = await supabase
       .from("rounds")
       .select("*")
       .eq("status", "active")
       .order("bidding_starts_at", { ascending: false })
       .limit(1);
 
-    if (selectError) {
-      console.warn("Supabase rounds table is not ready or not accessible yet:", selectError.message);
+    if (activeSelectError) {
+      console.warn("Supabase rounds table is not ready or not accessible yet:", activeSelectError.message);
       return null;
     }
 
@@ -252,12 +250,25 @@ const ensureActiveRound = async (): Promise<RoundRecord | null> => {
       return activeRounds[0] as RoundRecord;
     }
 
+    const { data: showcaseRounds, error: showcaseSelectError } = await supabase
+      .from("rounds")
+      .select("*")
+      .eq("status", "showcase")
+      .order("showcase_starts_at", { ascending: false })
+      .limit(1);
+
+    if (showcaseSelectError) {
+      console.warn("Could not load showcase round:", showcaseSelectError.message);
+      return null;
+    }
+
+    if (showcaseRounds && showcaseRounds.length > 0) {
+      return showcaseRounds[0] as RoundRecord;
+    }
+
     const now = new Date();
     const biddingStartsAt = new Date(now.getTime());
     const biddingEndsAt = new Date(now.getTime() + DEFAULT_ROUND_DURATION_MS);
-    const showcaseStartsAt = new Date(biddingEndsAt.getTime());
-    const showcaseEndsAt = new Date(biddingEndsAt.getTime() + DEFAULT_ROUND_DURATION_MS);
-
     const { data: insertedRound, error: insertError } = await supabase
       .from("rounds")
       .insert({
@@ -265,8 +276,6 @@ const ensureActiveRound = async (): Promise<RoundRecord | null> => {
         status: "active",
         bidding_starts_at: biddingStartsAt.toISOString(),
         bidding_ends_at: biddingEndsAt.toISOString(),
-        showcase_starts_at: showcaseStartsAt.toISOString(),
-        showcase_ends_at: showcaseEndsAt.toISOString(),
         created_at: now.toISOString(),
       })
       .select("*")
@@ -381,7 +390,7 @@ export default function Home() {
       try {
         const { data, error } = await supabase
           .from("bids")
-          .select("*, creators(name, specialty)")
+          .select("id, amount, creators(name, specialty)")
           .eq("round_id", activeRound.id)
           .order("amount", { ascending: false })
           .limit(10);
@@ -389,7 +398,7 @@ export default function Home() {
         if (error) {
           console.warn("Round bids unavailable:", error.message);
           if (isMounted) {
-            setLiveBids(baseLiveBids);
+            setLiveBids([]);
           }
           return;
         }
@@ -403,7 +412,7 @@ export default function Home() {
       } catch (error) {
         console.warn("Could not load round bids from Supabase:", error);
         if (isMounted) {
-          setLiveBids(baseLiveBids);
+          setLiveBids([]);
         }
       }
     };
@@ -416,22 +425,56 @@ export default function Home() {
   }, [activeRound]);
 
   useEffect(() => {
-    if (!activeRound || getRoundPhase(activeRound) !== "active") {
+    if (!activeRound) {
       return;
     }
 
+    const phase = getRoundPhase(activeRound);
     const deadline = getRoundDeadline(activeRound);
 
-    if (Date.now() >= deadline) {
-      const supabase = createSupabaseBrowserClient();
-      void (async () => {
+    if (Date.now() < deadline) {
+      return;
+    }
+
+    const supabase = createSupabaseBrowserClient();
+    void (async () => {
+      if (phase === "active") {
+        const showcaseStartsAt = new Date().toISOString();
+        const showcaseEndsAt = new Date(Date.now() + DEFAULT_ROUND_DURATION_MS).toISOString();
+        const { data: transitionedRound, error } = await supabase
+          .from("rounds")
+          .update({
+            status: "showcase",
+            showcase_starts_at: showcaseStartsAt,
+            showcase_ends_at: showcaseEndsAt,
+          })
+          .eq("id", activeRound.id)
+          .eq("status", "active")
+          .lte("bidding_ends_at", showcaseStartsAt)
+          .select("*")
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Could not start showcase automatically:", error.message);
+          return;
+        }
+
+        if (transitionedRound) {
+          setActiveRound(transitionedRound as RoundRecord);
+        }
+        return;
+      }
+
+      if (phase === "showcase") {
         const { error } = await supabase
           .from("rounds")
           .update({ status: "closed" })
-          .eq("id", activeRound.id);
+          .eq("id", activeRound.id)
+          .eq("status", "showcase")
+          .lte("showcase_ends_at", new Date().toISOString());
 
         if (error) {
-          console.warn("Could not close round automatically:", error.message);
+          console.warn("Could not close showcase automatically:", error.message);
           return;
         }
 
@@ -440,8 +483,8 @@ export default function Home() {
             ? { ...currentRound, status: "closed" }
             : currentRound,
         );
-      })();
-    }
+      }
+    })();
   }, [activeRound, now]);
 
   const deadline = useMemo(() => getRoundDeadline(activeRound), [activeRound]);
@@ -450,6 +493,9 @@ export default function Home() {
     () => formatCountdown(Math.max(deadline - now, 0)),
     [deadline, now],
   );
+
+  const isBiddingActive = getRoundPhase(activeRound) === "active";
+  const isShowcaseActive = getRoundPhase(activeRound) === "showcase";
 
   const currentLeader = useMemo(() => liveBids[0] ?? baseLiveBids[0], [liveBids]);
 
@@ -473,6 +519,10 @@ export default function Home() {
     : null;
 
   const openDemoFlow = (preselectedPosition?: number) => {
+    if (getRoundPhase(activeRound) !== "active") {
+      return;
+    }
+
     if (!session) {
       setAuthMode("sign-up");
       setAuthError("");
@@ -653,6 +703,12 @@ export default function Home() {
   };
 
   const handleDemoConfirm = async () => {
+    if (getRoundPhase(activeRound) !== "active") {
+      setDemoFlowOpen(false);
+      setSelectedBid(null);
+      return;
+    }
+
     const bidValue = Number(demoForm.bidAmount);
     const minimumRequired = currentPositionData?.minimumRequired ?? 0;
 
@@ -1247,8 +1303,8 @@ export default function Home() {
         <section className="section-block live-bids-block" id="live-bids">
           <div className="section-header">
             <div>
-              <div className="section-kicker">LIVE BIDS</div>
-              <h3>Round closes in</h3>
+              <div className="section-kicker">{isShowcaseActive ? "SHOWCASE" : "LIVE BIDS"}</div>
+              <h3>{isShowcaseActive ? "Showcase ends in" : "Round closes in"}</h3>
             </div>
             <div className="countdown" aria-live="polite">
               {countdown}
@@ -1259,7 +1315,7 @@ export default function Home() {
             <div className="ranking-panel">
               <div className="ranking-header">
                 <span>TOP 10 RANKING</span>
-                <span className="status-pill">48H ROUND</span>
+                <span className="status-pill">{isShowcaseActive ? "SHOWCASE" : "48H ROUND"}</span>
               </div>
 
               <div className="rank-list">
@@ -1272,14 +1328,16 @@ export default function Home() {
                     </div>
                     <div className="rank-cell bid-value">{entry.bid}</div>
                     <div className="rank-cell score-value">{entry.score}</div>
-                    <button
-                      className="take-button"
-                      onClick={() => {
-                        setSelectedBid(entry);
-                      }}
-                    >
-                      TAKE #{entry.rank}
-                    </button>
+                    {isBiddingActive ? (
+                      <button
+                        className="take-button"
+                        onClick={() => {
+                          setSelectedBid(entry);
+                        }}
+                      >
+                        TAKE #{entry.rank}
+                      </button>
+                    ) : null}
                   </div>
                 ))}
               </div>
