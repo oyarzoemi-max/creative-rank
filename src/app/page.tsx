@@ -230,63 +230,29 @@ const normalizeBidEntries = (rows: ActiveBidRecord[] | null | undefined): BidEnt
   });
 };
 
-const ensureActiveRound = async (): Promise<RoundRecord | null> => {
+const loadCurrentRound = async (): Promise<RoundRecord | null> => {
   const supabase = createSupabaseBrowserClient();
 
   try {
-    const { data: activeRounds, error: activeSelectError } = await supabase
+    const { error: transitionError } = await supabase.rpc("process_round_transitions");
+
+    if (transitionError) {
+      console.warn("Could not process round transitions:", transitionError.message);
+    }
+
+    const { data: rounds, error: selectError } = await supabase
       .from("rounds")
       .select("*")
-      .eq("status", "active")
+      .in("status", ["active", "showcase"])
       .order("bidding_starts_at", { ascending: false })
       .limit(1);
 
-    if (activeSelectError) {
-      console.warn("Supabase rounds table is not ready or not accessible yet:", activeSelectError.message);
+    if (selectError) {
+      console.warn("Could not load current round:", selectError.message);
       return null;
     }
 
-    if (activeRounds && activeRounds.length > 0) {
-      return activeRounds[0] as RoundRecord;
-    }
-
-    const { data: showcaseRounds, error: showcaseSelectError } = await supabase
-      .from("rounds")
-      .select("*")
-      .eq("status", "showcase")
-      .order("showcase_starts_at", { ascending: false })
-      .limit(1);
-
-    if (showcaseSelectError) {
-      console.warn("Could not load showcase round:", showcaseSelectError.message);
-      return null;
-    }
-
-    if (showcaseRounds && showcaseRounds.length > 0) {
-      return showcaseRounds[0] as RoundRecord;
-    }
-
-    const now = new Date();
-    const biddingStartsAt = new Date(now.getTime());
-    const biddingEndsAt = new Date(now.getTime() + DEFAULT_ROUND_DURATION_MS);
-    const { data: insertedRound, error: insertError } = await supabase
-      .from("rounds")
-      .insert({
-        title: `Round ${new Date().toISOString().slice(0, 10)}`,
-        status: "active",
-        bidding_starts_at: biddingStartsAt.toISOString(),
-        bidding_ends_at: biddingEndsAt.toISOString(),
-        created_at: now.toISOString(),
-      })
-      .select("*")
-      .single();
-
-    if (insertError) {
-      console.warn("Could not create active round automatically:", insertError.message);
-      return null;
-    }
-
-    return insertedRound as RoundRecord;
+    return rounds?.[0] as RoundRecord | undefined ?? null;
   } catch (error) {
     console.warn("Round creation check failed:", error);
     return null;
@@ -315,6 +281,7 @@ const scrollToSection = (sectionId: string) => {
 
 export default function Home() {
   const [activeRound, setActiveRound] = useState<RoundRecord | null>(null);
+  const [roundLoaded, setRoundLoaded] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [liveBids, setLiveBids] = useState<BidEntry[]>(baseLiveBids);
   const [selectedBid, setSelectedBid] = useState<BidEntry | null>(null);
@@ -360,13 +327,14 @@ export default function Home() {
     let isMounted = true;
 
     const loadActiveRound = async () => {
-      const round = await ensureActiveRound();
+      const round = await loadCurrentRound();
 
       if (!isMounted) {
         return;
       }
 
       setActiveRound(round);
+      setRoundLoaded(true);
     };
 
     loadActiveRound();
@@ -378,7 +346,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!activeRound?.id) {
-      setLiveBids(baseLiveBids);
+      setLiveBids([]);
       return;
     }
 
@@ -429,73 +397,36 @@ export default function Home() {
       return;
     }
 
-    const phase = getRoundPhase(activeRound);
     const deadline = getRoundDeadline(activeRound);
 
     if (Date.now() < deadline) {
       return;
     }
 
-    const supabase = createSupabaseBrowserClient();
     void (async () => {
-      if (phase === "active") {
-        const showcaseStartsAt = new Date().toISOString();
-        const showcaseEndsAt = new Date(Date.now() + DEFAULT_ROUND_DURATION_MS).toISOString();
-        const { data: transitionedRound, error } = await supabase
-          .from("rounds")
-          .update({
-            status: "showcase",
-            showcase_starts_at: showcaseStartsAt,
-            showcase_ends_at: showcaseEndsAt,
-          })
-          .eq("id", activeRound.id)
-          .eq("status", "active")
-          .lte("bidding_ends_at", showcaseStartsAt)
-          .select("*")
-          .maybeSingle();
+      const round = await loadCurrentRound();
+      setActiveRound(round);
+      setRoundLoaded(true);
 
-        if (error) {
-          console.warn("Could not start showcase automatically:", error.message);
-          return;
-        }
-
-        if (transitionedRound) {
-          setActiveRound(transitionedRound as RoundRecord);
-        }
-        return;
-      }
-
-      if (phase === "showcase") {
-        const { error } = await supabase
-          .from("rounds")
-          .update({ status: "closed" })
-          .eq("id", activeRound.id)
-          .eq("status", "showcase")
-          .lte("showcase_ends_at", new Date().toISOString());
-
-        if (error) {
-          console.warn("Could not close showcase automatically:", error.message);
-          return;
-        }
-
-        setActiveRound((currentRound) =>
-          currentRound && currentRound.id === activeRound.id
-            ? { ...currentRound, status: "closed" }
-            : currentRound,
-        );
+      if (getRoundPhase(round) !== "active") {
+        setSelectedBid(null);
+        setDemoFlowOpen(false);
       }
     })();
   }, [activeRound, now]);
 
-  const deadline = useMemo(() => getRoundDeadline(activeRound), [activeRound]);
+  const deadline = useMemo(
+    () => (roundLoaded ? getRoundDeadline(activeRound) : now),
+    [activeRound, now, roundLoaded],
+  );
 
   const countdown = useMemo(
     () => formatCountdown(Math.max(deadline - now, 0)),
     [deadline, now],
   );
 
-  const isBiddingActive = getRoundPhase(activeRound) === "active";
-  const isShowcaseActive = getRoundPhase(activeRound) === "showcase";
+  const isBiddingActive = roundLoaded && getRoundPhase(activeRound) === "active";
+  const isShowcaseActive = roundLoaded && getRoundPhase(activeRound) === "showcase";
 
   const currentLeader = useMemo(() => liveBids[0] ?? baseLiveBids[0], [liveBids]);
 
@@ -1239,9 +1170,11 @@ export default function Home() {
               LOG IN
             </button>
           )}
-          <button className="primary-button button-medium" onClick={() => openDemoFlow()}>
-            JOIN THE RANKING
-          </button>
+          {isBiddingActive ? (
+            <button className="primary-button button-medium" onClick={() => openDemoFlow()}>
+              JOIN THE RANKING
+            </button>
+          ) : null}
         </div>
       </header>
 
@@ -1259,9 +1192,11 @@ export default function Home() {
             </p>
 
             <div className="hero-actions">
-              <button className="primary-button" onClick={() => openDemoFlow()}>
-                ENTER THE RANKING
-              </button>
+              {isBiddingActive ? (
+                <button className="primary-button" onClick={() => openDemoFlow()}>
+                  ENTER THE RANKING
+                </button>
+              ) : null}
               <button className="secondary-button" onClick={() => scrollToSection("trending")}>
                 DISCOVER TALENT
               </button>
@@ -1443,9 +1378,11 @@ export default function Home() {
             <div className="section-kicker">ARE YOU A CREATIVE?</div>
             <h3>Get seen. Prove your work. Earn your rank.</h3>
           </div>
-          <button className="primary-button" onClick={() => openDemoFlow()}>
-            JOIN THE NEXT ROUND
-          </button>
+          {isBiddingActive ? (
+            <button className="primary-button" onClick={() => openDemoFlow()}>
+              JOIN THE NEXT ROUND
+            </button>
+          ) : null}
         </section>
       </main>
 
