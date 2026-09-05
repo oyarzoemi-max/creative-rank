@@ -87,19 +87,6 @@ const conceptCards = [
   },
 ];
 
-const baseLiveBids: BidEntry[] = [
-  { rank: 1, name: "Juan", specialty: "Brand Systems", bid: "$20.0K", bidValue: 20000, score: "98.7", minimumRequired: 21000 },
-  { rank: 2, name: "Aster Vale", specialty: "Motion Design", bid: "$18.4K", bidValue: 18400, score: "96.8", minimumRequired: 19600 },
-  { rank: 3, name: "Nova Kline", specialty: "Brand Systems", bid: "$16.1K", bidValue: 16100, score: "95.6", minimumRequired: 17100 },
-  { rank: 4, name: "Luma Reed", specialty: "3D Illustration", bid: "$15.7K", bidValue: 15700, score: "94.9", minimumRequired: 16800 },
-  { rank: 5, name: "Kiro Sato", specialty: "Product Storytelling", bid: "$14.8K", bidValue: 14800, score: "93.7", minimumRequired: 15800 },
-  { rank: 6, name: "Zee Sol", specialty: "Campaign Art", bid: "$13.9K", bidValue: 13900, score: "92.4", minimumRequired: 14900 },
-  { rank: 7, name: "Rae Moss", specialty: "Editorial Design", bid: "$12.6K", bidValue: 12600, score: "91.3", minimumRequired: 13400 },
-  { rank: 8, name: "Iris Noon", specialty: "AI Visuals", bid: "$11.3K", bidValue: 11300, score: "90.8", minimumRequired: 12100 },
-  { rank: 9, name: "Juno Faye", specialty: "Brand Film", bid: "$10.9K", bidValue: 10900, score: "89.2", minimumRequired: 11600 },
-  { rank: 10, name: "Milo Hart", specialty: "UX Motion", bid: "$9.8K", bidValue: 9800, score: "88.6", minimumRequired: 10400 },
-];
-
 const howItWorksSteps = [
   {
     step: "01",
@@ -164,8 +151,6 @@ const formatCountdown = (milliseconds: number) => {
     .join(":");
 };
 
-const DEFAULT_ROUND_DURATION_MS = 48 * 60 * 60 * 1000;
-
 const normalizeRoundStatus = (status?: string | null): RoundStatus => {
   const normalized = status?.toLowerCase?.() ?? "upcoming";
 
@@ -185,7 +170,7 @@ const getRoundPhase = (round: RoundRecord | null): RoundStatus => {
 
 const getRoundDeadline = (round: RoundRecord | null) => {
   if (!round) {
-    return Date.now() + DEFAULT_ROUND_DURATION_MS;
+    return 0;
   }
 
   const phase = getRoundPhase(round);
@@ -199,7 +184,7 @@ const getRoundDeadline = (round: RoundRecord | null) => {
           : round.bidding_ends_at;
 
   if (!timestamp) {
-    return Date.now() + DEFAULT_ROUND_DURATION_MS;
+    return 0;
   }
 
   const parsed = Number(new Date(timestamp).getTime());
@@ -207,7 +192,7 @@ const getRoundDeadline = (round: RoundRecord | null) => {
     return parsed;
   }
 
-  return Date.now() + DEFAULT_ROUND_DURATION_MS;
+  return 0;
 };
 
 const normalizeBidEntries = (rows: ActiveBidRecord[] | null | undefined): BidEntry[] => {
@@ -240,19 +225,35 @@ const loadCurrentRound = async (): Promise<RoundRecord | null> => {
       console.warn("Could not process round transitions:", transitionError.message);
     }
 
-    const { data: rounds, error: selectError } = await supabase
+    const { data: activeRounds, error: activeSelectError } = await supabase
       .from("rounds")
       .select("*")
-      .in("status", ["active", "showcase"])
+      .eq("status", "active")
       .order("bidding_starts_at", { ascending: false })
       .limit(1);
 
-    if (selectError) {
-      console.warn("Could not load current round:", selectError.message);
+    if (activeSelectError) {
+      console.warn("Could not load active round:", activeSelectError.message);
       return null;
     }
 
-    return rounds?.[0] as RoundRecord | undefined ?? null;
+    if (activeRounds?.[0]) {
+      return activeRounds[0] as RoundRecord;
+    }
+
+    const { data: showcaseRounds, error: showcaseSelectError } = await supabase
+      .from("rounds")
+      .select("*")
+      .eq("status", "showcase")
+      .order("showcase_starts_at", { ascending: false })
+      .limit(1);
+
+    if (showcaseSelectError) {
+      console.warn("Could not load showcase round:", showcaseSelectError.message);
+      return null;
+    }
+
+    return showcaseRounds?.[0] as RoundRecord | undefined ?? null;
   } catch (error) {
     console.warn("Round creation check failed:", error);
     return null;
@@ -283,11 +284,11 @@ export default function Home() {
   const [activeRound, setActiveRound] = useState<RoundRecord | null>(null);
   const [roundLoaded, setRoundLoaded] = useState(false);
   const [now, setNow] = useState(Date.now());
-  const [liveBids, setLiveBids] = useState<BidEntry[]>(baseLiveBids);
+  const [liveBids, setLiveBids] = useState<BidEntry[]>([]);
   const [selectedBid, setSelectedBid] = useState<BidEntry | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up">("sign-up");
+  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up" | "forgot-password">("sign-up");
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
@@ -321,6 +322,25 @@ export default function Home() {
     });
 
     return () => subscription.unsubscribe();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+
+    if (params.get("auth") !== "login") {
+      return;
+    }
+
+    window.history.replaceState({}, document.title, window.location.pathname);
+
+    const openLogin = window.setTimeout(() => {
+      setAuthMode("sign-in");
+      setAuthError("");
+      setAuthInfo("");
+      setAuthModalOpen(true);
+    }, 0);
+
+    return () => window.clearTimeout(openLogin);
   }, []);
 
   useEffect(() => {
@@ -428,7 +448,7 @@ export default function Home() {
   const isBiddingActive = roundLoaded && getRoundPhase(activeRound) === "active";
   const isShowcaseActive = roundLoaded && getRoundPhase(activeRound) === "showcase";
 
-  const currentLeader = useMemo(() => liveBids[0] ?? baseLiveBids[0], [liveBids]);
+  const currentLeader = useMemo(() => liveBids[0] ?? null, [liveBids]);
 
   const showcaseCards = useMemo(
     () => liveBids.map(({ name, specialty, score }) => ({ name, specialty, score })),
@@ -478,7 +498,12 @@ export default function Home() {
     const email = authEmail.trim();
     const password = authPassword.trim();
 
-    if (!email || !password) {
+    if (!email) {
+      setAuthError("Email is required.");
+      return;
+    }
+
+    if (authMode !== "forgot-password" && !password) {
       setAuthError("Email and password are required.");
       return;
     }
@@ -489,6 +514,19 @@ export default function Home() {
 
     try {
       const supabase = createSupabaseBrowserClient();
+
+      if (authMode === "forgot-password") {
+        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: "https://creative-rank.vercel.app/reset-password",
+        });
+
+        if (resetError) {
+          throw resetError;
+        }
+
+        setAuthInfo("If an account exists for this email, you will receive a password reset link shortly.");
+        return;
+      }
 
       if (authMode === "sign-up") {
         const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
@@ -1210,16 +1248,16 @@ export default function Home() {
                 <span className="mini-label">TOP CREATOR</span>
                 <span className="mini-pill">LIVE</span>
               </div>
-              <h2>{currentLeader.name}</h2>
-              <p>{currentLeader.specialty}</p>
+              <h2>{currentLeader?.name ?? "No current leader"}</h2>
+              <p>{currentLeader?.specialty ?? "No active round"}</p>
               <div className="mini-stats">
                 <div>
                   <span>Attention</span>
-                  <strong>{currentLeader.score}</strong>
+                  <strong>{currentLeader?.score ?? "--"}</strong>
                 </div>
                 <div>
                   <span>Bid</span>
-                  <strong>{currentLeader.bid}</strong>
+                  <strong>{currentLeader?.bid ?? "--"}</strong>
                 </div>
               </div>
             </div>
@@ -1238,8 +1276,12 @@ export default function Home() {
         <section className="section-block live-bids-block" id="live-bids">
           <div className="section-header">
             <div>
-              <div className="section-kicker">{isShowcaseActive ? "SHOWCASE" : "LIVE BIDS"}</div>
-              <h3>{isShowcaseActive ? "Showcase ends in" : "Round closes in"}</h3>
+              <div className="section-kicker">
+                {isShowcaseActive ? "SHOWCASE" : isBiddingActive ? "LIVE BIDS" : "NO ACTIVE ROUND"}
+              </div>
+              <h3>
+                {isShowcaseActive ? "Showcase ends in" : isBiddingActive ? "Round closes in" : "Round unavailable"}
+              </h3>
             </div>
             <div className="countdown" aria-live="polite">
               {countdown}
@@ -1250,7 +1292,9 @@ export default function Home() {
             <div className="ranking-panel">
               <div className="ranking-header">
                 <span>TOP 10 RANKING</span>
-                <span className="status-pill">{isShowcaseActive ? "SHOWCASE" : "48H ROUND"}</span>
+                <span className="status-pill">
+                  {isShowcaseActive ? "SHOWCASE" : isBiddingActive ? "48H ROUND" : "NO ROUND"}
+                </span>
               </div>
 
               <div className="rank-list">
@@ -1280,16 +1324,16 @@ export default function Home() {
 
             <aside className="leader-panel">
               <div className="leader-topline">CURRENT LEADER</div>
-              <h4>{currentLeader.name}</h4>
-              <p>{currentLeader.specialty}</p>
+              <h4>{currentLeader?.name ?? "No current leader"}</h4>
+              <p>{currentLeader?.specialty ?? "No active round"}</p>
               <div className="leader-metrics">
                 <div>
                   <span>Attention Score</span>
-                  <strong>{currentLeader.score}</strong>
+                  <strong>{currentLeader?.score ?? "--"}</strong>
                 </div>
                 <div>
                   <span>Bid Active</span>
-                  <strong>{currentLeader.bid}</strong>
+                  <strong>{currentLeader?.bid ?? "--"}</strong>
                 </div>
               </div>
               <div className="leader-visual">
@@ -1458,7 +1502,9 @@ export default function Home() {
             <div className="demo-modal-header">
               <div>
                 <div className="section-kicker">ACCESS</div>
-                <h3 id="auth-modal-title">{authMode === "sign-up" ? "Create account" : "Sign in"}</h3>
+                <h3 id="auth-modal-title">
+                  {authMode === "sign-up" ? "Create account" : authMode === "forgot-password" ? "Reset password" : "Sign in"}
+                </h3>
               </div>
               <button className="modal-close" onClick={() => setAuthModalOpen(false)} aria-label="Close auth modal">
                 ×
@@ -1476,26 +1522,43 @@ export default function Home() {
                 />
               </label>
 
-              <label className="field field-wide">
-                <span>Password</span>
-                <input
-                  type="password"
-                  value={authPassword}
-                  onChange={(event) => setAuthPassword(event.target.value)}
-                  placeholder="••••••••"
-                />
-              </label>
+              {authMode !== "forgot-password" ? (
+                <label className="field field-wide">
+                  <span>Password</span>
+                  <input
+                    type="password"
+                    value={authPassword}
+                    onChange={(event) => setAuthPassword(event.target.value)}
+                    placeholder="••••••••"
+                  />
+                </label>
+              ) : null}
             </div>
 
             {authError ? <small className="field-error">{authError}</small> : null}
             {authInfo ? <small className="field-hint">{authInfo}</small> : null}
 
+            {authMode === "sign-in" ? (
+              <button className="secondary-button modal-button" type="button" onClick={() => {
+                setAuthMode("forgot-password");
+                setAuthPassword("");
+                setAuthError("");
+                setAuthInfo("");
+              }}>
+                ¿OLVIDASTE TU CONTRASEÑA?
+              </button>
+            ) : null}
+
             <div className="modal-actions">
-              <button className="secondary-button" type="button" onClick={() => setAuthMode(authMode === "sign-up" ? "sign-in" : "sign-up")}>
-                {authMode === "sign-up" ? "Already have an account?" : "Need an account?"}
+              <button className="secondary-button" type="button" onClick={() => {
+                setAuthMode(authMode === "sign-up" ? "sign-in" : "sign-in");
+                setAuthError("");
+                setAuthInfo("");
+              }}>
+                {authMode === "sign-up" ? "Already have an account?" : "Back to sign in"}
               </button>
               <button className="primary-button" type="button" onClick={handleAuthSubmit} disabled={authLoading}>
-                {authLoading ? "PLEASE WAIT..." : authMode === "sign-up" ? "CREATE ACCOUNT" : "SIGN IN"}
+                {authLoading ? "PLEASE WAIT..." : authMode === "sign-up" ? "CREATE ACCOUNT" : authMode === "forgot-password" ? "SEND RESET LINK" : "SIGN IN"}
               </button>
             </div>
           </div>
