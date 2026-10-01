@@ -13,21 +13,22 @@ type Participant = {
   handle: string;
   banner: string;
   accent: string;
+  site: string;
 };
 
 const MONTHLY_CAP = 20000;
 
 const initialParticipants: Participant[] = [
-  { id: 1, name: "Luma Studio", category: "Diseño", credits: 20000, clicks: 820, impressions: 11800, joinedAt: 1, handle: "@lumastudio", banner: "Diseño que transforma ideas en experiencias.", accent: "#ff3cac" },
-  { id: 2, name: "Nova Digital", category: "Tecnología", credits: 20000, clicks: 1120, impressions: 14300, joinedAt: 2, handle: "@novadigital", banner: "Tecnología que conecta tu próximo salto.", accent: "#25d9ff" },
-  { id: 3, name: "Atlas Travel", category: "Viajes", credits: 20000, clicks: 640, impressions: 9200, joinedAt: 3, handle: "@atlastravel", banner: "El próximo destino empieza acá.", accent: "#65f4d0" },
-  { id: 4, name: "Patagonia Lab", category: "Business", credits: 17000, clicks: 980, impressions: 12100, joinedAt: 4, handle: "@patagonialab", banner: "Ideas que se convierten en negocios.", accent: "#ffb52e" },
-  { id: 5, name: "Marea Brand", category: "Branding", credits: 15000, clicks: 760, impressions: 10100, joinedAt: 5, handle: "@mareabrand", banner: "Hacé que tu marca sea imposible de ignorar.", accent: "#ff7a45" },
-  { id: 6, name: "Pixel Norte", category: "Diseño", credits: 12000, clicks: 540, impressions: 7800, joinedAt: 6, handle: "@pixelnorte", banner: "Diseño digital con identidad propia.", accent: "#9d7cff" },
-  { id: 7, name: "Andes Tech", category: "Tecnología", credits: 10000, clicks: 430, impressions: 6400, joinedAt: 7, handle: "@andestech", banner: "Soluciones para empresas que avanzan.", accent: "#25d9ff" },
-  { id: 8, name: "Sur Experience", category: "Viajes", credits: 8000, clicks: 390, impressions: 5700, joinedAt: 8, handle: "@surexperience", banner: "Experiencias que quedan para siempre.", accent: "#65f4d0" },
-  { id: 9, name: "Cumbre Store", category: "Comercio", credits: 6000, clicks: 260, impressions: 4200, joinedAt: 9, handle: "@cumbrestore", banner: "Encontrá lo que estabas buscando.", accent: "#ffd447" },
-  { id: 10, name: "Delta Creative", category: "Creativo", credits: 3000, clicks: 180, impressions: 2600, joinedAt: 10, handle: "@deltacreative", banner: "Creatividad que conecta personas y marcas.", accent: "#b46cff" },
+  { id: 1, name: "Luma Studio", category: "Diseño", credits: 20000, clicks: 820, impressions: 11800, joinedAt: 1, handle: "@lumastudio", banner: "Diseño que transforma ideas en experiencias.", accent: "#ff3cac", site: "https://example.com/luma" },
+  { id: 2, name: "Nova Digital", category: "Tecnología", credits: 20000, clicks: 1120, impressions: 14300, joinedAt: 2, handle: "@novadigital", banner: "Tecnología que conecta tu próximo salto.", accent: "#25d9ff", site: "https://example.com/nova" },
+  { id: 3, name: "Atlas Travel", category: "Viajes", credits: 20000, clicks: 640, impressions: 9200, joinedAt: 3, handle: "@atlastravel", banner: "El próximo destino empieza acá.", accent: "#65f4d0", site: "https://example.com/atlas" },
+  { id: 4, name: "Patagonia Lab", category: "Business", credits: 17000, clicks: 980, impressions: 12100, joinedAt: 4, handle: "@patagonialab", banner: "Ideas que se convierten en negocios.", accent: "#ffb52e", site: "https://example.com/patagonia" },
+  { id: 5, name: "Marea Brand", category: "Branding", credits: 15000, clicks: 760, impressions: 10100, joinedAt: 5, handle: "@mareabrand", banner: "Hacé que tu marca sea imposible de ignorar.", accent: "#ff7a45", site: "https://example.com/marea" },
+  { id: 6, name: "Pixel Norte", category: "Diseño", credits: 12000, clicks: 540, impressions: 7800, joinedAt: 6, handle: "@pixelnorte", banner: "Diseño digital con identidad propia.", accent: "#9d7cff", site: "https://example.com/pixel" },
+  { id: 7, name: "Andes Tech", category: "Tecnología", credits: 10000, clicks: 430, impressions: 6400, joinedAt: 7, handle: "@andestech", banner: "Soluciones para empresas que avanzan.", accent: "#25d9ff", site: "https://example.com/andes" },
+  { id: 8, name: "Sur Experience", category: "Viajes", credits: 8000, clicks: 390, impressions: 5700, joinedAt: 8, handle: "@surexperience", banner: "Experiencias que quedan para siempre.", accent: "#65f4d0", site: "https://example.com/sur" },
+  { id: 9, name: "Cumbre Store", category: "Comercio", credits: 6000, clicks: 260, impressions: 4200, joinedAt: 9, handle: "@cumbrestore", banner: "Encontrá lo que estabas buscando.", accent: "#ffd447", site: "https://example.com/cumbre" },
+  { id: 10, name: "Delta Creative", category: "Creativo", credits: 3000, clicks: 180, impressions: 2600, joinedAt: 10, handle: "@deltacreative", banner: "Creatividad que conecta personas y marcas.", accent: "#b46cff", site: "https://example.com/delta" },
 ];
 
 const scoreFor = (p: Participant) => {
@@ -65,6 +66,11 @@ export default function Home() {
     setMessage("⚡ Interacción agregada. El ranking se recalculó en tiempo real.");
   };
 
+  const adClick = (id: number) => {
+    setParticipants(current => current.map(p => p.id === id ? { ...p, clicks: p.clicks + 1 } : p));
+    setMessage("🎯 Click publicitario registrado. La audiencia movió el ranking.");
+  };
+
   const addCredits = (id: number, amount: number) => {
     setParticipants(current => current.map(p => p.id === id
       ? { ...p, credits: Math.min(MONTHLY_CAP, p.credits + amount) }
@@ -79,12 +85,12 @@ export default function Home() {
 
   return (
     <main style={styles.page}>
-      <header style={styles.header}>
+      <header className="cr-header" style={styles.header}>
         <div>
           <div style={styles.logo}>CR<span style={{ color: "#25d9ff" }}>EATIVE</span> <span style={{ color: "#ff3cac" }}>RANK</span></div>
           <div style={styles.tagline}>CREADORES · MARCAS · EXPERIENCIAS</div>
         </div>
-        <nav style={styles.nav}>
+        <nav className="cr-nav" style={styles.nav}>
           <a href="#ranking" style={styles.navA}>🏆 RANKING</a>
           <a href="#winners" style={styles.navA}>TOP 5</a>
           <a href="#how" style={styles.navA}>CÓMO FUNCIONA</a>
@@ -118,7 +124,7 @@ export default function Home() {
 
       <div style={styles.notice}>{message}</div>
 
-      <section id="ranking" style={styles.section}>
+      <section id="ranking" className="cr-section" style={styles.section}>
         <div style={styles.sectionHead}>
           <div>
             <div style={styles.eyebrow}>01 · LIVE RANKING</div>
@@ -127,15 +133,15 @@ export default function Home() {
           <div style={styles.monthBadge}>{month}</div>
         </div>
 
-        <div style={styles.dashboard}>
-          <div style={styles.tableCard}>
-            <div style={styles.tableHeader}>
+        <div className="cr-dashboard" style={styles.dashboard}>
+          <div className="cr-table-card" style={styles.tableCard}>
+            <div className="cr-table-head" style={styles.tableHeader}>
               <span>#</span><span>PARTICIPANTE</span><span>CATEGORÍA</span><span>CRÉDITOS</span><span>CLICKS</span><span>CR SCORE</span><span>TENDENCIA</span>
             </div>
             {ranking.map((p, index) => (
               <div key={p.id}
                 onClick={() => { setSelectedId(p.id); setMessage(`👀 ${p.name} seleccionado. Abrí VER para conocer su perfil.`); }}
-                style={{ ...styles.row, ...(selected?.id === p.id ? styles.rowSelected : {}) }}>
+                className="cr-row" style={{ ...styles.row, ...(selected?.id === p.id ? styles.rowSelected : {}) }}>
                 <strong style={styles.rank}>{p.rank <= 3 ? ["🥇","🥈","🥉"][p.rank-1] : p.rank}</strong>
                 <div style={styles.person}><strong>{p.name}</strong><small>{p.handle}</small></div>
                 <span style={{ ...styles.category, borderColor: p.accent, color: p.accent }}>{p.category}</span>
@@ -151,12 +157,17 @@ export default function Home() {
           </div>
 
           <aside style={styles.sideCard}>
-            <div style={styles.profileBanner}>
+            <button
+              onClick={() => adClick(selected.id)}
+              style={{ ...styles.profileBanner, width: "100%", border: 0, color: "#fff", cursor: "pointer", textAlign: "left" }}
+              title="Click publicitario de prueba"
+            >
               <div style={{ ...styles.bannerGlow, background: selected.accent }} />
               <span style={styles.profileRank}>#{selected.rank}</span>
               <span style={{ ...styles.category, borderColor: selected.accent, color: selected.accent }}>{selected.category}</span>
               <div style={styles.avatar}>{selected.name.slice(0,1)}</div>
-            </div>
+              <span style={styles.bannerClickHint}>CLICK PUBLICITARIO · +1</span>
+            </button>
             <div style={styles.eyebrow}>SELECTED PARTICIPANT</div>
             <h3 style={styles.sideCardH3}>{selected.name}</h3>
             <p style={styles.p}>{selected.handle} · {selected.banner}</p>
@@ -179,7 +190,7 @@ export default function Home() {
 
       <section id="winners" style={styles.section}>
         <div style={styles.sectionHead}><div><div style={styles.eyebrow}>02 · TOP 5</div><h2 style={styles.h2}>Los que están captando atención este mes.</h2></div></div>
-        <div style={styles.winnerGrid}>
+        <div className="cr-winners" style={styles.winnerGrid}>
           {ranking.slice(0,5).map(p => (
             <button key={p.id} onClick={() => setProfileId(p.id)} style={{ ...styles.winnerCard, textAlign: "left", color: "#fff", cursor: "pointer" }}>
               <div style={styles.winnerVisual}><span>{p.rank === 1 ? "🏆" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : `#${p.rank}`}</span><span style={{ ...styles.miniBadge, borderColor:p.accent, color:p.accent }}>{p.category}</span></div>
@@ -192,7 +203,7 @@ export default function Home() {
 
       <section id="how" style={styles.section}>
         <div style={styles.sectionHead}><div><div style={styles.eyebrow}>03 · HOW IT WORKS</div><h2 style={styles.h2}>Promoción + atención + interacción.</h2></div></div>
-        <div style={styles.steps}>
+        <div className="cr-steps" style={styles.steps}>
           <Step n="01" title="PROMOCIONÁ" text="Comprá créditos y llevá tu publicación hasta un máximo de 20.000 créditos mensuales." />
           <Step n="02" title="GENERÁ INTERÉS" text="Tu presencia recibe visualizaciones y clics. La respuesta de la audiencia mueve el ranking." />
           <Step n="03" title="MOSTRÁ TU MARCA" text="Tu perfil y tu banner aparecen dentro de Creative Rank para que otros puedan descubrirte." />
@@ -234,12 +245,12 @@ export default function Home() {
         </div>
       </section>
 
-      <section style={styles.testPanel}>
+      <section className="cr-test" style={styles.testPanel}>
         <div><div style={styles.eyebrow}>MVP TEST CONSOLE</div><h2 style={{...styles.h2,fontSize:32}}>Probá la mecánica en tiempo real.</h2><p style={styles.p}>Seleccioná una marca, sumá clics y mirá cómo cambia su posición.</p></div>
         <button onClick={() => { setMonth("NOVIEMBRE 2026"); resetDemo(); }} style={styles.primary}>SIMULAR NUEVO MES</button>
       </section>
 
-      <footer style={styles.footer}><strong>CREATIVE<span style={{color:"#ff3cac"}}>RANK</span></strong><span>MVP · Monthly Competition Engine</span><span>© 2026</span></footer>
+      <footer className="cr-footer" style={styles.footer}><strong>CREATIVE<span style={{color:"#ff3cac"}}>RANK</span></strong><span>MVP · Monthly Competition Engine</span><span>© 2026</span></footer>
 
       {infoPanel && (
         <div style={styles.modalBackdrop} onClick={() => setInfoPanel(null)}>
@@ -281,15 +292,19 @@ export default function Home() {
         <div style={styles.modalBackdrop} onClick={() => setProfileId(null)}>
           <div style={styles.modal} onClick={e => e.stopPropagation()}>
             <button onClick={() => setProfileId(null)} style={styles.close}>×</button>
-            <div style={{ ...styles.modalBanner, background: `linear-gradient(135deg,${profile.accent},#784cff 55%,#07131c)` }}>
-              <span style={styles.modalRank}>#{profile.rank}</span><span style={styles.modalLive}>● BANNER ACTIVO</span>
+            <button
+              onClick={() => adClick(profile.id)}
+              style={{ ...styles.modalBanner, background: `linear-gradient(135deg,${profile.accent},#784cff 55%,#07131c)`, width: "100%", border: 0, color: "#fff", cursor: "pointer", textAlign: "left" }}
+              title="Click publicitario de prueba"
+            >
+              <span style={styles.modalRank}>#{profile.rank}</span><span style={styles.modalLive}>● BANNER ACTIVO · CLICK +1</span>
               <div><small>CREATIVE RANK · {month}</small><h2>{profile.name}</h2><p>{profile.banner}</p></div>
-            </div>
+            </button>
             <div style={styles.modalBody}>
               <div><div style={styles.eyebrow}>{profile.category}</div><h3>{profile.handle}</h3></div>
-              <div style={styles.modalMetrics}><Metric label="POSICIÓN" value={`#${profile.rank}`} /><Metric label="CR SCORE" value={profile.score.toLocaleString()} /><Metric label="IMPRESIONES" value={profile.impressions.toLocaleString()} /><Metric label="CLICKS" value={profile.clicks.toLocaleString()} /></div>
+              <div className="cr-modal-metrics" style={styles.modalMetrics}><Metric label="POSICIÓN" value={`#${profile.rank}`} /><Metric label="CR SCORE" value={profile.score.toLocaleString()} /><Metric label="IMPRESIONES" value={profile.impressions.toLocaleString()} /><Metric label="CLICKS" value={profile.clicks.toLocaleString()} /></div>
               <div style={styles.fakeChart}><div style={styles.chartLine}><i/><i/><i/><i/><i/><i/><i/></div><span>EVOLUCIÓN DEL SCORE · ÚLTIMOS 30 DÍAS</span></div>
-              <div style={styles.modalActions}><button onClick={() => addClicks(profile.id)} style={styles.primary}>IMPULSAR +100 CLICKS</button><button onClick={() => setProfileId(null)} style={styles.secondary}>CERRAR</button></div>
+              <div style={styles.modalActions}><button onClick={() => adClick(profile.id)} style={styles.primary}>CLICK PUBLICITARIO +1</button><a href={profile.site} target="_blank" rel="noreferrer" style={styles.secondary}>VISITAR SITIO ↗</a><button onClick={() => setProfileId(null)} style={styles.secondary}>CERRAR</button></div>
             </div>
           </div>
         </div>
