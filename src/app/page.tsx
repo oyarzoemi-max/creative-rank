@@ -496,7 +496,6 @@ const styles: Record<string, React.CSSProperties> = {
   activeBannerLabel:{color:"#65f4d0",fontSize:9,fontWeight:950,letterSpacing:".15em",marginBottom:10},
   dashboardBanner:{position:"relative",width:"100%",minHeight:160,overflow:"hidden",border:"1px solid",borderRadius:20,padding:18,background:"linear-gradient(135deg,#171129,#0a2430)",color:"#fff",display:"flex",alignItems:"center",gap:18,textAlign:"left",cursor:"pointer"},
   dashboardBannerCopy:{position:"relative",display:"flex",flexDirection:"column",gap:5},
-  dashboardBannerCopy span:{},
   dashboardBottom:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:15,marginTop:14},
   kpiGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
   promoBox:{marginTop:18,border:"1px solid rgba(255,212,71,.2)",borderRadius:18,padding:18,background:"rgba(255,212,71,.035)"},
