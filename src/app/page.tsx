@@ -87,8 +87,11 @@ export default function Home() {
     supabase.auth.getSession().then(async ({ data }) => {
       setUserEmail(data.session?.user.email ?? null);
       if (data.session?.user) {
-        const { data: company } = await supabase.from("companies").select("id").eq("owner_id", data.session.user.id).eq("active", true).maybeSingle();
+        const { data: company } = await supabase.from("companies").select("id").eq("owner_id", data.session.user.id).eq("active", true).order("created_at", { ascending: true }).limit(1).maybeSingle();
         setOwnedCompanyId(company?.id ?? null);
+        if (company?.id) {
+          await supabase.rpc("ensure_company_entry", { p_company_id: company.id });
+        }
       }
     });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -106,7 +109,9 @@ export default function Home() {
     let cancelled = false;
     const loadLiveRanking = async () => {
       const supabase = createSupabaseBrowserClient();
-      const { data, error } = await supabase.from("live_ranking").select("*").order("score", { ascending: false });
+      const { data: edition } = await supabase.from("monthly_editions").select("name").eq("status", "active").order("starts_at", { ascending: false }).limit(1).maybeSingle();
+      if (edition?.name) setMonth(edition.name);
+      const { data, error } = await supabase.from("live_ranking").select("*").order("rank", { ascending: true });
       if (cancelled || error || !data?.length) return;
       const accentFor = (category: string | null) => {
         const map: Record<string, string> = { "Tecnología":"#25d9ff", "Viajes":"#65f4d0", "Diseño":"#ff3cac", "Comercio":"#ffd447", "Gastronomía":"#ff7a45", "Servicios":"#9d7cff", "Creativo":"#b46cff", "Business":"#ffb52e" };
@@ -248,6 +253,12 @@ export default function Home() {
         const { data: company, error } = await supabase.from("companies").insert({ owner_id: userData.user.id, name, handle, category_id: category?.id ?? null, description, logo_url: storedLogo || null, site_url: site, accent, approved: true }).select("id").single();
         if (error) { setMessage("⚠️ No se pudo guardar la empresa: " + error.message); return; }
         setOwnedCompanyId(company.id);
+        const { error: entryError } = await supabase.rpc("ensure_company_entry", { p_company_id: company.id });
+        if (entryError) {
+          setSaveBusy(false);
+          setMessage("⚠️ La empresa se guardó, pero no pudo ingresar a la edición activa: " + entryError.message);
+          return;
+        }
       }
     }
     setParticipants(current => [...current, participant]);
@@ -326,7 +337,7 @@ export default function Home() {
     setSaveBusy(true);
     try {
       const supabase = createSupabaseBrowserClient();
-      const { data: edition, error: editionError } = await supabase.from("monthly_editions").select("id").eq("status", "active").single();
+      const { data: edition, error: editionError } = await supabase.from("monthly_editions").select("id").eq("status", "active").order("starts_at", { ascending: false }).limit(1).maybeSingle();
       if (editionError || !edition) throw new Error("No hay una edición mensual activa.");
       const { data: pkg, error: packageError } = await supabase.from("credit_packages").select("id,credits,price_usd").eq("price_usd", priceUsd).eq("active", true).single();
       if (packageError || !pkg) throw new Error("Paquete no disponible.");
