@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createSupabaseBrowserClient } from "@/lib/supabase";
+import { uploadCompanyLogo } from "@/lib/logo-storage";
 
 type Participant = {
   id: number;
@@ -65,6 +66,9 @@ export default function Home() {
   const [showJoin, setShowJoin] = useState(false);
   const [newCompany, setNewCompany] = useState({ name: "", category: "Tecnología", description: "", site: "" });
   const [logoPreview, setLogoPreview] = useState("");
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [editLogoFile, setEditLogoFile] = useState<File | null>(null);
+  const [saveBusy, setSaveBusy] = useState(false);
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ name: "", category: "", description: "", site: "", logo: "" });
   const [showAuth, setShowAuth] = useState(false);
@@ -190,7 +194,7 @@ export default function Home() {
     setMessage("Sesión cerrada.");
   };
 
-  const registerCompany = () => {
+  const registerCompany = async () => {
     const name = newCompany.name.trim();
     const description = newCompany.description.trim();
     const site = newCompany.site.trim() || "https://example.com";
@@ -202,6 +206,25 @@ export default function Home() {
     const accentPalette = ["#ff3cac", "#25d9ff", "#65f4d0", "#ffd447", "#9d7cff", "#ff7a45"];
     const accent = accentPalette[(nextId - 1) % accentPalette.length];
     const handle = "@" + name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 18);
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && !userEmail) {
+      setAuthMode("login");
+      setShowAuth(true);
+      setMessage("🔐 Ingresá o creá tu cuenta para registrar una participación real.");
+      return;
+    }
+    setSaveBusy(true);
+    let storedLogo = "";
+    const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? createSupabaseBrowserClient() : null;
+    if (supabase && logoFile && userEmail) {
+      try {
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) storedLogo = await uploadCompanyLogo(supabase, userData.user.id, logoFile);
+      } catch (error) {
+        setSaveBusy(false);
+        setMessage("⚠️ No se pudo subir el logo: " + (error instanceof Error ? error.message : "error desconocido"));
+        return;
+      }
+    }
     const participant: Participant = {
       id: nextId,
       name,
@@ -212,7 +235,7 @@ export default function Home() {
       externalVisits: 0,
       joinedAt: nextId,
       handle,
-      logo: logoPreview || name.slice(0, 1).toUpperCase(),
+      logo: storedLogo || logoPreview || name.slice(0, 1).toUpperCase(),
       banner: description,
       accent,
       site,
@@ -222,7 +245,7 @@ export default function Home() {
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
         const { data: category } = await supabase.from("categories").select("id").eq("name", newCompany.category).maybeSingle();
-        const { data: company, error } = await supabase.from("companies").insert({ owner_id: userData.user.id, name, handle, category_id: category?.id ?? null, description, logo_url: logoPreview || null, site_url: site, accent, approved: true }).select("id").single();
+        const { data: company, error } = await supabase.from("companies").insert({ owner_id: userData.user.id, name, handle, category_id: category?.id ?? null, description, logo_url: storedLogo || null, site_url: site, accent, approved: true }).select("id").single();
         if (error) { setMessage("⚠️ No se pudo guardar la empresa: " + error.message); return; }
         setOwnedCompanyId(company.id);
       }
@@ -232,6 +255,8 @@ export default function Home() {
     setShowJoin(false);
     setNewCompany({ name: "", category: "Tecnología", description: "", site: "" });
     setLogoPreview("");
+    setLogoFile(null);
+    setSaveBusy(false);
     setMessage(`🚀 ${name} ya está participando. Creative Rank generó su banner automáticamente.`);
     setTimeout(() => document.getElementById("ranking")?.scrollIntoView({ behavior: "smooth" }), 50);
   };
@@ -248,6 +273,7 @@ export default function Home() {
     }
     const url = URL.createObjectURL(file);
     setLogoPreview(url);
+    setLogoFile(file);
     setMessage("🖼️ Logo cargado. Revisá la vista previa antes de guardar.");
   };
 
@@ -264,7 +290,19 @@ export default function Home() {
       setMessage("⚠️ Completá nombre y descripción antes de guardar.");
       return;
     }
-    const nextLogo = editForm.logo || name.slice(0, 1).toUpperCase();
+    setSaveBusy(true);
+    let nextLogo = editForm.logo || name.slice(0, 1).toUpperCase();
+    if (userEmail && ownedCompanyId && editLogoFile && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      try {
+        const supabase = createSupabaseBrowserClient();
+        const { data: userData } = await supabase.auth.getUser();
+        if (userData.user) nextLogo = await uploadCompanyLogo(supabase, userData.user.id, editLogoFile);
+      } catch (error) {
+        setSaveBusy(false);
+        setMessage("⚠️ No se pudo subir el nuevo logo: " + (error instanceof Error ? error.message : "error desconocido"));
+        return;
+      }
+    }
     setParticipants(current => current.map(p => p.id === editId ? { ...p, name, category: editForm.category, banner: description, site: editForm.site.trim() || p.site, logo: nextLogo } : p));
     if (userEmail && ownedCompanyId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
       const supabase = createSupabaseBrowserClient();
@@ -273,6 +311,8 @@ export default function Home() {
       if (error) { setMessage("⚠️ No se pudo guardar en Supabase: " + error.message); return; }
     }
     setEditId(null);
+    setEditLogoFile(null);
+    setSaveBusy(false);
     setMessage("✏️ Datos actualizados. El banner se regeneró automáticamente.");
   };
 
