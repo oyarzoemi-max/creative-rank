@@ -9,6 +9,7 @@ type Participant = {
   credits: number;
   clicks: number;
   impressions: number;
+  externalVisits: number;
   joinedAt: number;
   handle: string;
   banner: string;
@@ -20,17 +21,19 @@ type Participant = {
 const MONTHLY_CAP = 20000;
 
 const initialParticipants: Participant[] = [
-  { id: 1, name: "Luma Studio", category: "Diseño", credits: 20000, clicks: 820, impressions: 11800, joinedAt: 1, handle: "@lumastudio", logo: "L", banner: "Diseño que transforma ideas en experiencias.", accent: "#ff3cac", site: "https://example.com/luma" },
-  { id: 2, name: "Nova Digital", category: "Tecnología", credits: 20000, clicks: 1120, impressions: 14300, joinedAt: 2, handle: "@novadigital", logo: "N", banner: "Tecnología que conecta tu próximo salto.", accent: "#25d9ff", site: "https://example.com/nova" },
-  { id: 3, name: "Atlas Travel", category: "Viajes", credits: 20000, clicks: 640, impressions: 9200, joinedAt: 3, handle: "@atlastravel", logo: "A", banner: "El próximo destino empieza acá.", accent: "#65f4d0", site: "https://example.com/atlas" },
-  { id: 4, name: "Patagonia Lab", category: "Business", credits: 17000, clicks: 980, impressions: 12100, joinedAt: 4, handle: "@patagonialab", logo: "P", banner: "Ideas que se convierten en negocios.", accent: "#ffb52e", site: "https://example.com/patagonia" },
-  { id: 5, name: "Marea Brand", category: "Branding", credits: 15000, clicks: 760, impressions: 10100, joinedAt: 5, handle: "@mareabrand", logo: "M", banner: "Hacé que tu marca sea imposible de ignorar.", accent: "#ff7a45", site: "https://example.com/marea" },
-  { id: 6, name: "Pixel Norte", category: "Diseño", credits: 12000, clicks: 540, impressions: 7800, joinedAt: 6, handle: "@pixelnorte", logo: "P", banner: "Diseño digital con identidad propia.", accent: "#9d7cff", site: "https://example.com/pixel" },
-  { id: 7, name: "Andes Tech", category: "Tecnología", credits: 10000, clicks: 430, impressions: 6400, joinedAt: 7, handle: "@andestech", logo: "A", banner: "Soluciones para empresas que avanzan.", accent: "#25d9ff", site: "https://example.com/andes" },
-  { id: 8, name: "Sur Experience", category: "Viajes", credits: 8000, clicks: 390, impressions: 5700, joinedAt: 8, handle: "@surexperience", logo: "S", banner: "Experiencias que quedan para siempre.", accent: "#65f4d0", site: "https://example.com/sur" },
-  { id: 9, name: "Cumbre Store", category: "Comercio", credits: 6000, clicks: 260, impressions: 4200, joinedAt: 9, handle: "@cumbrestore", logo: "C", banner: "Encontrá lo que estabas buscando.", accent: "#ffd447", site: "https://example.com/cumbre" },
-  { id: 10, name: "Delta Creative", category: "Creativo", credits: 3000, clicks: 180, impressions: 2600, joinedAt: 10, handle: "@deltacreative", logo: "D", banner: "Creatividad que conecta personas y marcas.", accent: "#b46cff", site: "https://example.com/delta" },
+  { id: 1, name: "Luma Studio", category: "Diseño", credits: 20000, clicks: 820, impressions: 11800, externalVisits: 210, joinedAt: 1, handle: "@lumastudio", logo: "L", banner: "Diseño que transforma ideas en experiencias.", accent: "#ff3cac", site: "https://example.com/luma" },
+  { id: 2, name: "Nova Digital", category: "Tecnología", credits: 20000, clicks: 1120, impressions: 14300, externalVisits: 340, joinedAt: 2, handle: "@novadigital", logo: "N", banner: "Tecnología que conecta tu próximo salto.", accent: "#25d9ff", site: "https://example.com/nova" },
+  { id: 3, name: "Atlas Travel", category: "Viajes", credits: 20000, clicks: 640, impressions: 9200, externalVisits: 170, joinedAt: 3, handle: "@atlastravel", logo: "A", banner: "El próximo destino empieza acá.", accent: "#65f4d0", site: "https://example.com/atlas" },
+  { id: 4, name: "Patagonia Lab", category: "Business", credits: 17000, clicks: 980, impressions: 12100, externalVisits: 290, joinedAt: 4, handle: "@patagonialab", logo: "P", banner: "Ideas que se convierten en negocios.", accent: "#ffb52e", site: "https://example.com/patagonia" },
+  { id: 5, name: "Marea Brand", category: "Branding", credits: 15000, clicks: 760, impressions: 10100, externalVisits: 230, joinedAt: 5, handle: "@mareabrand", logo: "M", banner: "Hacé que tu marca sea imposible de ignorar.", accent: "#ff7a45", site: "https://example.com/marea" },
+  { id: 6, name: "Pixel Norte", category: "Diseño", credits: 12000, clicks: 540, impressions: 7800, externalVisits: 150, joinedAt: 6, handle: "@pixelnorte", logo: "P", banner: "Diseño digital con identidad propia.", accent: "#9d7cff", site: "https://example.com/pixel" },
+  { id: 7, name: "Andes Tech", category: "Tecnología", credits: 10000, clicks: 430, impressions: 6400, externalVisits: 120, joinedAt: 7, handle: "@andestech", logo: "A", banner: "Soluciones para empresas que avanzan.", accent: "#25d9ff", site: "https://example.com/andes" },
+  { id: 8, name: "Sur Experience", category: "Viajes", credits: 8000, clicks: 390, impressions: 5700, externalVisits: 105, joinedAt: 8, handle: "@surexperience", logo: "S", banner: "Experiencias que quedan para siempre.", accent: "#65f4d0", site: "https://example.com/sur" },
+  { id: 9, name: "Cumbre Store", category: "Comercio", credits: 6000, clicks: 260, impressions: 4200, externalVisits: 70, joinedAt: 9, handle: "@cumbrestore", logo: "C", banner: "Encontrá lo que estabas buscando.", accent: "#ffd447", site: "https://example.com/cumbre" },
+  { id: 10, name: "Delta Creative", category: "Creativo", credits: 3000, clicks: 180, impressions: 2600, externalVisits: 45, joinedAt: 10, handle: "@deltacreative", logo: "D", banner: "Creatividad que conecta personas y marcas.", accent: "#b46cff", site: "https://example.com/delta" },
 ];
+
+const ctrFor = (p: Participant) => p.impressions > 0 ? (p.clicks / p.impressions) * 100 : 0;
 
 const scoreFor = (p: Participant) => {
   const creditPoints = (p.credits / MONTHLY_CAP) * 500;
@@ -100,6 +103,7 @@ export default function Home() {
       credits: 0,
       clicks: 0,
       impressions: 0,
+      externalVisits: 0,
       joinedAt: nextId,
       handle,
       logo: name.slice(0, 1).toUpperCase(),
@@ -113,6 +117,11 @@ export default function Home() {
     setNewCompany({ name: "", category: "Tecnología", description: "", site: "" });
     setMessage(`🚀 ${name} ya está participando. Creative Rank generó su banner automáticamente.`);
     setTimeout(() => document.getElementById("ranking")?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
+  const visitSite = (id: number) => {
+    setParticipants(current => current.map(p => p.id === id ? { ...p, externalVisits: p.externalVisits + 1 } : p));
+    setMessage("🌐 Visita al sitio registrada. La empresa recibió una visita externa.");
   };
 
   const resetDemo = () => {
@@ -160,6 +169,41 @@ export default function Home() {
       </section>
 
       <div style={styles.notice}>{message}</div>
+
+
+      <section className="cr-participant-dashboard" style={styles.participantDashboard}>
+        <div className="cr-dashboard-intro" style={styles.dashboardIntro}>
+          <div>
+            <div style={styles.eyebrow}>PANEL DEL PARTICIPANTE · DEMO</div>
+            <h2 style={styles.h2}>Tu marca está activa.</h2>
+            <p style={styles.p}>Controlá tu posición, rendimiento y presencia promocional desde un solo lugar.</p>
+          </div>
+          <button onClick={() => setShowJoin(true)} style={styles.primary}>+ NUEVA PARTICIPACIÓN</button>
+        </div>
+        <div className="cr-participant-grid" style={styles.participantGrid}>
+          <div style={styles.participantMainCard}>
+            <div style={styles.activeBannerLabel}>● TU BANNER ESTÁ ACTIVO</div>
+            <button onClick={() => adClick(selected.id)} style={{...styles.dashboardBanner, borderColor:selected.accent}}>
+              <div style={{...styles.bannerGlow,background:selected.accent}} />
+              <div style={{...styles.generatedLogoLarge,borderColor:selected.accent}}>{selected.logo}</div>
+              <div style={styles.dashboardBannerCopy}><span>{selected.category}</span><strong>{selected.name}</strong><p>{selected.banner}</p></div>
+              <small>CLICK PUBLICITARIO · +1</small>
+            </button>
+            <div style={styles.dashboardBottom}>
+              <div><small>SITIO VINCULADO</small><strong>{selected.site.replace("https://","")}</strong></div>
+              <button onClick={() => setProfileId(selected.id)} style={styles.secondary}>VER PERFIL →</button>
+            </div>
+          </div>
+          <div className="cr-kpi-grid" style={styles.kpiGrid}>
+            <Metric label="POSICIÓN" value={`#${selected.rank}`} />
+            <Metric label="CR SCORE" value={selected.score.toLocaleString()} />
+            <Metric label="IMPRESIONES" value={selected.impressions.toLocaleString()} />
+            <Metric label="CLICKS" value={selected.clicks.toLocaleString()} />
+            <Metric label="CTR" value={`${ctrFor(selected).toFixed(2)}%`} />
+            <Metric label="VISITAS WEB" value={selected.externalVisits.toLocaleString()} />
+          </div>
+        </div>
+      </section>
 
       <section id="ranking" className="cr-section" style={styles.section}>
         <div style={styles.sectionHead}>
@@ -220,7 +264,7 @@ export default function Home() {
               <button onClick={() => addClicks(selected.id)} style={styles.primary}>+100 CLICKS</button>
               <button onClick={() => addCredits(selected.id,1000)} style={{ ...styles.secondary, borderColor: "#ffb52e", color: "#ffd66b" }}>+1K CRÉDITOS</button>
             </div>
-            <button onClick={() => setProfileId(selected.id)} style={styles.fullButton}>VER PERFIL COMPLETO →</button>
+            <button onClick={() => setProfileId(selected.id)} style={styles.fullButton}>VER PERFIL COMPLETO →</button><button onClick={() => setShowJoin(true)} style={{...styles.fullButton, marginTop:8, borderColor:"rgba(255,60,172,.35)", color:"#ff9bd1"}}>PROMOCIONAR MI MARCA →</button>
           </aside>
         </div>
       </section>
@@ -369,7 +413,31 @@ export default function Home() {
               <div><div style={styles.eyebrow}>{profile.category}</div><h3>{profile.handle}</h3></div>
               <div className="cr-modal-metrics" style={styles.modalMetrics}><Metric label="POSICIÓN" value={`#${profile.rank}`} /><Metric label="CR SCORE" value={profile.score.toLocaleString()} /><Metric label="IMPRESIONES" value={profile.impressions.toLocaleString()} /><Metric label="CLICKS" value={profile.clicks.toLocaleString()} /></div>
               <div style={styles.fakeChart}><div style={styles.chartLine}><i/><i/><i/><i/><i/><i/><i/></div><span>EVOLUCIÓN DEL SCORE · ÚLTIMOS 30 DÍAS</span></div>
-              <div style={styles.modalActions}><button onClick={() => adClick(profile.id)} style={styles.primary}>CLICK PUBLICITARIO +1</button><a href={profile.site} target="_blank" rel="noreferrer" style={styles.secondary}>VISITAR SITIO ↗</a><button onClick={() => setProfileId(null)} style={styles.secondary}>CERRAR</button></div>
+              
+              <div style={styles.promoBox}>
+                <div>
+                  <div style={styles.eyebrow}>PROMOCIÓN MENSUAL</div>
+                  <h3 style={{margin:"5px 0 4px"}}>Impulsá tu presencia.</h3>
+                  <p style={styles.p}>Elegí un paquete de créditos para aumentar tu influencia promocional durante esta edición.</p>
+                </div>
+                <div className="cr-package-grid" style={styles.packageGrid}>
+                  {[
+                    ["USD 10","100 CR"],
+                    ["USD 25","275 CR"],
+                    ["USD 50","600 CR"],
+                    ["USD 100","1.300 CR"],
+                    ["USD 250","3.500 CR"],
+                    ["USD 500","8.000 CR"],
+                  ].map(([price,credits]) => (
+                    <button key={price} onClick={() => setMessage(`💳 Paquete ${price} seleccionado · ${credits}. En el MVP el pago todavía es simulado.`)} style={styles.packageButton}>
+                      <strong>{price}</strong><span>{credits}</span>
+                    </button>
+                  ))}
+                </div>
+                <small style={styles.packageNote}>Límite de influencia promocional: 20.000 créditos por participante y por edición.</small>
+              </div>
+
+              <div style={styles.modalActions}><button onClick={() => adClick(profile.id)} style={styles.primary}>CLICK PUBLICITARIO +1</button><a href={profile.site} target="_blank" rel="noreferrer" onClick={() => visitSite(profile.id)} style={styles.secondary}>VISITAR SITIO ↗</a><button onClick={() => setProfileId(null)} style={styles.secondary}>CERRAR</button></div>
             </div>
           </div>
         </div>
@@ -421,6 +489,20 @@ const styles: Record<string, React.CSSProperties> = {
   fieldInput:{},
   generatedPreview:{border:"1px solid rgba(255,255,255,.09)",borderRadius:18,padding:16,background:"rgba(255,255,255,.025)"},
   previewBanner:{minHeight:115,border:"1px solid",borderRadius:16,padding:16,display:"flex",alignItems:"center",gap:16,background:"linear-gradient(135deg,rgba(37,217,255,.12),rgba(120,76,255,.1))"},
+  participantDashboard:{maxWidth:1380,margin:"0 auto",padding:"35px 0 20px"},
+  dashboardIntro:{display:"flex",justifyContent:"space-between",alignItems:"end",gap:20,marginBottom:16},
+  participantGrid:{display:"grid",gridTemplateColumns:"1.15fr .85fr",gap:14},
+  participantMainCard:{border:"1px solid rgba(255,255,255,.11)",borderRadius:24,padding:20,background:"linear-gradient(145deg,rgba(255,60,172,.09),rgba(37,217,255,.05),rgba(12,11,18,.92))"},
+  activeBannerLabel:{color:"#65f4d0",fontSize:9,fontWeight:950,letterSpacing:".15em",marginBottom:10},
+  dashboardBanner:{position:"relative",width:"100%",minHeight:160,overflow:"hidden",border:"1px solid",borderRadius:20,padding:18,background:"linear-gradient(135deg,#171129,#0a2430)",color:"#fff",display:"flex",alignItems:"center",gap:18,textAlign:"left",cursor:"pointer"},
+  dashboardBannerCopy:{position:"relative",display:"flex",flexDirection:"column",gap:5},
+  dashboardBannerCopy span:{},
+  dashboardBottom:{display:"flex",justifyContent:"space-between",alignItems:"center",gap:15,marginTop:14},
+  kpiGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10},
+  promoBox:{marginTop:18,border:"1px solid rgba(255,212,71,.2)",borderRadius:18,padding:18,background:"rgba(255,212,71,.035)"},
+  packageGrid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:13},
+  packageButton:{border:"1px solid rgba(255,255,255,.11)",borderRadius:12,padding:"11px 9px",background:"rgba(255,255,255,.04)",color:"#fff",cursor:"pointer",display:"flex",flexDirection:"column",gap:4,textAlign:"left"},
+  packageNote:{display:"block",color:"#777487",fontSize:9,marginTop:10},
   infoModal:{width:"min(760px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
   infoModalHead:{padding:"30px 28px 22px",background:"linear-gradient(135deg,rgba(255,60,172,.14),rgba(37,217,255,.07))",borderBottom:"1px solid rgba(255,255,255,.08)"},
   infoModalBody:{padding:"8px 28px 28px"},
@@ -440,10 +522,10 @@ if (typeof window !== "undefined") {
     style.textContent = `
       *{box-sizing:border-box} html{scroll-behavior:smooth}
       button:hover,a:hover{filter:brightness(1.12);transform:translateY(-1px)} input,select,textarea{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#12111b;color:#f8f7ff;padding:12px 13px;font:inherit;outline:none}textarea{min-height:88px;resize:vertical}input:focus,select:focus,textarea:focus{border-color:#25d9ff;box-shadow:0 0 0 3px rgba(37,217,255,.08)}
-      @media(max-width:1050px){.cr-dashboard{grid-template-columns:1fr!important}.cr-table-card{overflow-x:auto}.cr-winners{grid-template-columns:repeat(3,1fr)!important}}
-      @media(max-width:800px){.cr-hero{grid-template-columns:1fr!important}.cr-winners{grid-template-columns:repeat(2,1fr)!important}.cr-steps{grid-template-columns:1fr!important}.cr-table-head{display:none!important}}
+      @media(max-width:1050px){.cr-participant-grid{grid-template-columns:1fr!important}.cr-dashboard{grid-template-columns:1fr!important}.cr-table-card{overflow-x:auto}.cr-winners{grid-template-columns:repeat(3,1fr)!important}}
+      @media(max-width:800px){.cr-dashboard-intro{flex-direction:column!important;align-items:flex-start!important}.cr-package-grid{grid-template-columns:repeat(2,1fr)!important}.cr-hero{grid-template-columns:1fr!important}.cr-winners{grid-template-columns:repeat(2,1fr)!important}.cr-steps{grid-template-columns:1fr!important}.cr-table-head{display:none!important}}
       @media(max-width:900px){.cr-info-grid{grid-template-columns:1fr!important}}
-      @media(max-width:620px){.cr-header{flex-direction:column!important;align-items:flex-start!important}.cr-nav{width:100%!important}.cr-row{grid-template-columns:34px 1fr 55px!important}.cr-row>span:nth-child(3),.cr-row>span:nth-child(4),.cr-row>span:nth-child(5),.cr-row>span:nth-child(6),.cr-row>span:nth-child(7){display:none!important}.cr-winners{grid-template-columns:1fr!important}.cr-test{flex-direction:column!important;align-items:flex-start!important}.cr-footer{flex-direction:column!important}.cr-modal-metrics{grid-template-columns:1fr 1fr!important}}
+      @media(max-width:620px){.cr-dashboard{grid-template-columns:1fr!important}.cr-package-grid{grid-template-columns:1fr 1fr!important}.cr-header{flex-direction:column!important;align-items:flex-start!important}.cr-nav{width:100%!important}.cr-row{grid-template-columns:34px 1fr 55px!important}.cr-row>span:nth-child(3),.cr-row>span:nth-child(4),.cr-row>span:nth-child(5),.cr-row>span:nth-child(6),.cr-row>span:nth-child(7){display:none!important}.cr-winners{grid-template-columns:1fr!important}.cr-test{flex-direction:column!important;align-items:flex-start!important}.cr-footer{flex-direction:column!important}.cr-modal-metrics{grid-template-columns:1fr 1fr!important}}
     `;
     document.head.appendChild(style);
   }
