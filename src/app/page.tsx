@@ -316,6 +316,37 @@ export default function Home() {
     setMessage("✏️ Datos actualizados. El banner se regeneró automáticamente.");
   };
 
+  const startCheckout = async (priceUsd: number) => {
+    if (!userEmail || !ownedCompanyId) {
+      setAuthMode("login");
+      setShowAuth(true);
+      setMessage("🔐 Ingresá y registrá tu empresa antes de comprar créditos.");
+      return;
+    }
+    setSaveBusy(true);
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const { data: edition, error: editionError } = await supabase.from("monthly_editions").select("id").eq("status", "active").single();
+      if (editionError || !edition) throw new Error("No hay una edición mensual activa.");
+      const { data: pkg, error: packageError } = await supabase.from("credit_packages").select("id,credits,price_usd").eq("price_usd", priceUsd).eq("active", true).single();
+      if (packageError || !pkg) throw new Error("Paquete no disponible.");
+      const { data: userData } = await supabase.auth.getUser();
+      if (!userData.user) throw new Error("La sesión expiró. Volvé a ingresar.");
+      const response = await fetch("/api/checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ packageId: pkg.id, companyId: ownedCompanyId, editionId: edition.id, userId: userData.user.id }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "No se pudo iniciar el checkout.");
+      setMessage(`💳 Checkout creado por ${pkg.credits.toLocaleString()} créditos. Redirigiendo a Mercado Pago…`);
+      window.location.href = result.checkoutUrl;
+    } catch (error) {
+      setMessage("⚠️ " + (error instanceof Error ? error.message : "No se pudo iniciar el pago."));
+      setSaveBusy(false);
+    }
+  };
+
   const visitSite = (id: number) => {
     setParticipants(current => current.map(p => p.id === id ? { ...p, externalVisits: p.externalVisits + 1 } : p));
     setMessage("🌐 Visita al sitio registrada. La empresa recibió una visita externa.");
@@ -667,7 +698,7 @@ export default function Home() {
                     ["USD 250","3.500 CR"],
                     ["USD 500","8.000 CR"],
                   ].map(([price,credits]) => (
-                    <button key={price} onClick={() => setMessage(`💳 Paquete ${price} seleccionado · ${credits}. En el MVP el pago todavía es simulado.`)} style={styles.packageButton}>
+                    <button key={price} onClick={() => startCheckout(Number(price.replace("USD ","")))} disabled={saveBusy} style={styles.packageButton}>
                       <strong>{price}</strong><span>{credits}</span>
                     </button>
                   ))}
