@@ -67,6 +67,24 @@ export default function Home() {
   const [logoPreview, setLogoPreview] = useState("");
   const [editId, setEditId] = useState<number | null>(null);
   const [editForm, setEditForm] = useState({ name: "", category: "", description: "", site: "", logo: "" });
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+  const [authBusy, setAuthBusy] = useState(false);
+
+  useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return;
+    const supabase = createSupabaseBrowserClient();
+    supabase.auth.getSession().then(({ data }) => setUserEmail(data.session?.user.email ?? null));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUserEmail(session?.user.email ?? null);
+    });
+    return () => listener.subscription.unsubscribe();
+  }, []);
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -127,6 +145,41 @@ export default function Home() {
       ? { ...p, credits: Math.min(MONTHLY_CAP, p.credits + amount) }
       : p));
     setMessage(`🚀 Promoción simulada: +${amount.toLocaleString()} créditos.`);
+  };
+
+  const handleAuth = async () => {
+    const email = authEmail.trim();
+    if (!email || !authPassword) {
+      setMessage("⚠️ Completá email y contraseña.");
+      return;
+    }
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) {
+      setMessage("ℹ️ Supabase todavía no está configurado en este entorno.");
+      return;
+    }
+    setAuthBusy(true);
+    const supabase = createSupabaseBrowserClient();
+    const result = authMode === "login"
+      ? await supabase.auth.signInWithPassword({ email, password: authPassword })
+      : await supabase.auth.signUp({ email, password: authPassword });
+    setAuthBusy(false);
+    if (result.error) {
+      setMessage("⚠️ " + result.error.message);
+      return;
+    }
+    setShowAuth(false);
+    setAuthPassword("");
+    setMessage(authMode === "login" ? "🟢 Sesión iniciada correctamente." : "📩 Cuenta creada. Revisá tu email si se solicita confirmación.");
+  };
+
+  const logout = async () => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (url && key) await createSupabaseBrowserClient().auth.signOut();
+    setUserEmail(null);
+    setMessage("Sesión cerrada.");
   };
 
   const registerCompany = () => {
@@ -226,7 +279,7 @@ export default function Home() {
           <a href="#ranking" style={styles.navA}>🏆 RANKING</a>
           <a href="#winners" style={styles.navA}>TOP 5</a>
           <a href="#how" style={styles.navA}>CÓMO FUNCIONA</a>
-          <button onClick={resetDemo} style={styles.smallButton}>RESET DEMO</button>
+          {userEmail ? <><span style={styles.userPill}>● {userEmail}</span><button onClick={logout} style={styles.smallButton}>SALIR</button></> : <button onClick={() => { setAuthMode("login"); setShowAuth(true); }} style={styles.smallButton}>INGRESAR</button>}<button onClick={resetDemo} style={styles.smallButton}>RESET DEMO</button>
         </nav>
       </header>
 
@@ -419,6 +472,25 @@ export default function Home() {
 
       <footer className="cr-footer" style={styles.footer}><strong>CREATIVE<span style={{color:"#ff3cac"}}>RANK</span></strong><span>MVP · Monthly Competition Engine</span><span>© 2026</span></footer>
 
+
+      {showAuth && (
+        <div style={styles.modalBackdrop} onClick={() => setShowAuth(false)}>
+          <div style={styles.authModal} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowAuth(false)} style={styles.close}>×</button>
+            <div style={styles.joinHead}>
+              <div style={styles.eyebrow}>{authMode === "login" ? "ACCESO PARTICIPANTE" : "NUEVA CUENTA"}</div>
+              <h2 style={styles.h2}>{authMode === "login" ? "Ingresá a tu cuenta." : "Creá tu cuenta."}</h2>
+              <p style={styles.p}>Tu cuenta será la puerta de entrada a tu empresa, banner, métricas y créditos.</p>
+            </div>
+            <div style={styles.joinBody}>
+              <label style={styles.field}><span>EMAIL</span><input type="email" autoComplete="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="tu@email.com" /></label>
+              <label style={styles.field}><span>CONTRASEÑA</span><input type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></label>
+              <button disabled={authBusy} onClick={handleAuth} style={{...styles.primary,opacity:authBusy?.65:1}}>{authBusy ? "PROCESANDO..." : authMode === "login" ? "INGRESAR →" : "CREAR CUENTA →"}</button>
+              <button onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={styles.secondary}>{authMode === "login" ? "NO TENGO CUENTA · CREAR" : "YA TENGO CUENTA · INGRESAR"}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {showJoin && (
         <div style={styles.modalBackdrop} onClick={() => setShowJoin(false)}>
