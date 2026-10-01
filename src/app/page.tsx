@@ -19,6 +19,8 @@ type Participant = {
   site: string;
 };
 
+const isImageUrl = (value: string) => /^(https?:\/\/|blob:|data:image\/)/i.test(value);
+
 const MONTHLY_CAP = 20000;
 
 const initialParticipants: Participant[] = [
@@ -62,6 +64,9 @@ export default function Home() {
   const [dataSource, setDataSource] = useState<"demo" | "supabase">("demo");
   const [showJoin, setShowJoin] = useState(false);
   const [newCompany, setNewCompany] = useState({ name: "", category: "Tecnología", description: "", site: "" });
+  const [logoPreview, setLogoPreview] = useState("");
+  const [editId, setEditId] = useState<number | null>(null);
+  const [editForm, setEditForm] = useState({ name: "", category: "", description: "", site: "", logo: "" });
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -87,7 +92,7 @@ export default function Home() {
         externalVisits: Number(p.external_visits ?? 0),
         joinedAt: index + 1,
         handle: p.handle ?? "",
-        logo: (p.logo_url ?? p.name ?? "C").slice(0, 1).toUpperCase(),
+        logo: p.logo_url ?? (p.name ?? "C").slice(0, 1).toUpperCase(),
         banner: p.description ?? "",
         accent: accentFor(p.category),
         site: p.site_url ?? "https://example.com"
@@ -146,7 +151,7 @@ export default function Home() {
       externalVisits: 0,
       joinedAt: nextId,
       handle,
-      logo: name.slice(0, 1).toUpperCase(),
+      logo: logoPreview || name.slice(0, 1).toUpperCase(),
       banner: description,
       accent,
       site,
@@ -155,8 +160,49 @@ export default function Home() {
     setSelectedId(nextId);
     setShowJoin(false);
     setNewCompany({ name: "", category: "Tecnología", description: "", site: "" });
+    setLogoPreview("");
     setMessage(`🚀 ${name} ya está participando. Creative Rank generó su banner automáticamente.`);
     setTimeout(() => document.getElementById("ranking")?.scrollIntoView({ behavior: "smooth" }), 50);
+  };
+
+  const handleLogoFile = (file: File | undefined) => {
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      setMessage("⚠️ El logo debe ser una imagen.");
+      return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage("⚠️ El logo no puede superar 2 MB.");
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setLogoPreview(url);
+    setMessage("🖼️ Logo cargado. Revisá la vista previa antes de guardar.");
+  };
+
+  const openEdit = (p: Participant) => {
+    setEditId(p.id);
+    setEditForm({ name: p.name, category: p.category, description: p.banner, site: p.site, logo: p.logo });
+  };
+
+  const saveEdit = () => {
+    if (editId === null) return;
+    const name = editForm.name.trim();
+    const description = editForm.description.trim();
+    if (!name || !description) {
+      setMessage("⚠️ Completá nombre y descripción antes de guardar.");
+      return;
+    }
+    setParticipants(current => current.map(p => p.id === editId ? {
+      ...p,
+      name,
+      category: editForm.category,
+      banner: description,
+      site: editForm.site.trim() || p.site,
+      logo: editForm.logo || name.slice(0, 1).toUpperCase()
+    } : p));
+    setEditId(null);
+    setMessage("✏️ Datos actualizados. El banner se regeneró automáticamente.");
   };
 
   const visitSite = (id: number) => {
@@ -231,7 +277,7 @@ export default function Home() {
             </button>
             <div style={styles.dashboardBottom}>
               <div><small>SITIO VINCULADO</small><strong>{selected.site.replace("https://","")}</strong></div>
-              <button onClick={() => setProfileId(selected.id)} style={styles.secondary}>VER PERFIL →</button>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button onClick={() => openEdit(selected)} style={styles.secondary}>EDITAR DATOS ✎</button><button onClick={() => setProfileId(selected.id)} style={styles.secondary}>VER PERFIL →</button></div>
             </div>
           </div>
           <div className="cr-kpi-grid" style={styles.kpiGrid}>
@@ -384,18 +430,40 @@ export default function Home() {
               <p style={styles.p}>Completá los datos básicos. El sistema genera automáticamente tu banner con la identidad de Creative Rank.</p>
             </div>
             <div style={styles.joinBody}>
-              <label style={styles.field}><span>NOMBRE DE LA EMPRESA</span><input value={newCompany.name} onChange={e => setNewCompany({...newCompany, name:e.target.value})} placeholder="Ej. Patagonia Travel" /></label>
+              <label style={styles.field}><span>LOGO DE LA EMPRESA</span><div style={styles.logoUploadRow}><div style={styles.uploadLogoPreview}>{logoPreview ? <img src={logoPreview} alt="Vista previa del logo" /> : <span>{newCompany.name.trim().slice(0,1).toUpperCase() || "C"}</span>}</div><label style={styles.uploadButton}>CARGAR LOGO<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={e => handleLogoFile(e.target.files?.[0])} /></label><small>PNG, JPG, WEBP o SVG · máximo 2 MB</small></div></label><label style={styles.field}><span>NOMBRE DE LA EMPRESA</span><input value={newCompany.name} onChange={e => setNewCompany({...newCompany, name:e.target.value})} placeholder="Ej. Patagonia Travel" /></label>
               <label style={styles.field}><span>CATEGORÍA</span><select value={newCompany.category} onChange={e => setNewCompany({...newCompany, category:e.target.value})}><option>Tecnología</option><option>Viajes</option><option>Diseño</option><option>Comercio</option><option>Gastronomía</option><option>Servicios</option><option>Creativo</option><option>Business</option></select></label>
               <label style={styles.field}><span>DESCRIPCIÓN BREVE</span><textarea maxLength={120} value={newCompany.description} onChange={e => setNewCompany({...newCompany, description:e.target.value})} placeholder="Hasta 120 caracteres. ¿Qué hace tu empresa?" /><small>{newCompany.description.length}/120</small></label>
               <label style={styles.field}><span>SITIO WEB</span><input type="url" value={newCompany.site} onChange={e => setNewCompany({...newCompany, site:e.target.value})} placeholder="https://tusitio.com" /></label>
               <div style={styles.generatedPreview}>
                 <div style={styles.eyebrow}>VISTA PREVIA · BANNER GENERADO</div>
                 <div style={{...styles.previewBanner, borderColor: newCompany.name ? "#25d9ff" : "rgba(255,255,255,.12)"}}>
-                  <div style={{...styles.generatedLogoLarge, borderColor:"#25d9ff"}}>{newCompany.name.trim().slice(0,1).toUpperCase() || "C"}</div>
+                  <div style={{...styles.generatedLogoLarge, borderColor:"#25d9ff",overflow:"hidden"}}>{logoPreview ? <img src={logoPreview} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}} /> : (newCompany.name.trim().slice(0,1).toUpperCase() || "C")}</div>
                   <div><strong>{newCompany.name.trim() || "Tu empresa"}</strong><p>{newCompany.description.trim() || "Tu descripción breve aparecerá aquí."}</p><span style={styles.generatedCategory}>{newCompany.category}</span></div>
                 </div>
               </div>
               <button onClick={registerCompany} style={{...styles.primary, width:"100%", marginTop:4}}>GENERAR BANNER Y PARTICIPAR →</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editId !== null && (
+        <div style={styles.modalBackdrop} onClick={() => setEditId(null)}>
+          <div style={styles.joinModal} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setEditId(null)} style={styles.close}>×</button>
+            <div style={styles.joinHead}>
+              <div style={styles.eyebrow}>EDITAR PARTICIPANTE</div>
+              <h2 style={styles.h2}>Corregí los datos de tu empresa.</h2>
+              <p style={styles.p}>Podés modificar la información cuando lo necesites. El banner se actualiza con los nuevos datos.</p>
+            </div>
+            <div style={styles.joinBody}>
+              <label style={styles.field}><span>NOMBRE DE LA EMPRESA</span><input value={editForm.name} onChange={e => setEditForm({...editForm,name:e.target.value})} /></label>
+              <label style={styles.field}><span>CATEGORÍA</span><select value={editForm.category} onChange={e => setEditForm({...editForm,category:e.target.value})}><option>Tecnología</option><option>Viajes</option><option>Diseño</option><option>Comercio</option><option>Gastronomía</option><option>Servicios</option><option>Creativo</option><option>Business</option></select></label>
+              <label style={styles.field}><span>DESCRIPCIÓN BREVE</span><textarea maxLength={120} value={editForm.description} onChange={e => setEditForm({...editForm,description:e.target.value})} /><small>{editForm.description.length}/120</small></label>
+              <label style={styles.field}><span>SITIO WEB</span><input type="url" value={editForm.site} onChange={e => setEditForm({...editForm,site:e.target.value})} /></label>
+              <label style={styles.field}><span>LOGO</span><div style={styles.logoUploadRow}><div style={styles.uploadLogoPreview}>{isImageUrl(editForm.logo) ? <img src={editForm.logo} alt="" /> : <span>{editForm.logo || editForm.name.slice(0,1).toUpperCase() || "C"}</span>}</div><label style={styles.uploadButton}>CAMBIAR LOGO<input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" onChange={e => { const f=e.target.files?.[0]; if(f){ if(f.size>2*1024*1024){setMessage("⚠️ El logo no puede superar 2 MB.");return;} setEditForm({...editForm,logo:URL.createObjectURL(f)}); } }} /></label></div></label>
+              <div style={styles.generatedPreview}><div style={styles.eyebrow}>VISTA PREVIA · BANNER ACTUALIZADO</div><div style={{...styles.previewBanner,borderColor:"#25d9ff"}}><div style={{...styles.generatedLogoLarge,borderColor:"#25d9ff",overflow:"hidden"}}>{isImageUrl(editForm.logo) ? <img src={editForm.logo} alt="" style={{width:"100%",height:"100%",objectFit:"contain"}} /> : (editForm.logo || editForm.name.slice(0,1).toUpperCase() || "C")}</div><div><strong>{editForm.name || "Tu empresa"}</strong><p>{editForm.description || "Tu descripción breve aparecerá aquí."}</p><span style={styles.generatedCategory}>{editForm.category}</span></div></div></div>
+              <button onClick={saveEdit} style={{...styles.primary,width:"100%"}}>GUARDAR CAMBIOS Y ACTUALIZAR BANNER →</button>
             </div>
           </div>
         </div>
@@ -477,7 +545,7 @@ export default function Home() {
                 <small style={styles.packageNote}>Límite de influencia promocional: 20.000 créditos por participante y por edición.</small>
               </div>
 
-              <div style={styles.modalActions}><button onClick={() => adClick(profile.id)} style={styles.primary}>CLICK PUBLICITARIO +1</button><a href={profile.site} target="_blank" rel="noreferrer" onClick={() => visitSite(profile.id)} style={styles.secondary}>VISITAR SITIO ↗</a><button onClick={() => setProfileId(null)} style={styles.secondary}>CERRAR</button></div>
+              <div style={styles.modalActions}><button onClick={() => openEdit(profile)} style={styles.secondary}>EDITAR PERFIL ✎</button><button onClick={() => adClick(profile.id)} style={styles.primary}>CLICK PUBLICITARIO +1</button><a href={profile.site} target="_blank" rel="noreferrer" onClick={() => visitSite(profile.id)} style={styles.secondary}>VISITAR SITIO ↗</a><button onClick={() => setProfileId(null)} style={styles.secondary}>CERRAR</button></div>
             </div>
           </div>
         </div>
@@ -527,6 +595,10 @@ const styles: Record<string, React.CSSProperties> = {
   joinBody:{padding:24,display:"grid",gap:14},
   field:{display:"grid",gap:7,color:"#aaa6b7",fontSize:9,fontWeight:900,letterSpacing:".1em"},
   fieldInput:{},
+  logoUploadRow:{display:"flex",alignItems:"center",gap:12,flexWrap:"wrap"},
+  uploadLogoPreview:{width:64,height:64,borderRadius:16,border:"1px dashed rgba(255,255,255,.2)",background:"rgba(255,255,255,.04)",display:"grid",placeItems:"center",overflow:"hidden",fontSize:22,fontWeight:950,color:"#25d9ff"},
+  uploadLogoPreviewImg:{width:"100%",height:"100%",objectFit:"contain"},
+  uploadButton:{display:"inline-flex",alignItems:"center",justifyContent:"center",padding:"10px 13px",borderRadius:11,border:"1px solid rgba(255,255,255,.15)",background:"rgba(255,255,255,.05)",color:"#fff",fontSize:9,fontWeight:900,letterSpacing:".08em",cursor:"pointer"},
   generatedPreview:{border:"1px solid rgba(255,255,255,.09)",borderRadius:18,padding:16,background:"rgba(255,255,255,.025)"},
   previewBanner:{minHeight:115,border:"1px solid",borderRadius:16,padding:16,display:"flex",alignItems:"center",gap:16,background:"linear-gradient(135deg,rgba(37,217,255,.12),rgba(120,76,255,.1))"},
   participantDashboard:{maxWidth:1380,margin:"0 auto",padding:"35px 0 20px"},
