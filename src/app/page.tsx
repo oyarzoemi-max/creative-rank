@@ -73,15 +73,23 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [ownedCompanyId, setOwnedCompanyId] = useState<string | null>(null);
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
     if (!url || !key) return;
     const supabase = createSupabaseBrowserClient();
-    supabase.auth.getSession().then(({ data }) => setUserEmail(data.session?.user.email ?? null));
+    supabase.auth.getSession().then(async ({ data }) => {
+      setUserEmail(data.session?.user.email ?? null);
+      if (data.session?.user) {
+        const { data: company } = await supabase.from("companies").select("id").eq("owner_id", data.session.user.id).eq("active", true).maybeSingle();
+        setOwnedCompanyId(company?.id ?? null);
+      }
+    });
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       setUserEmail(session?.user.email ?? null);
+      if (!session?.user) setOwnedCompanyId(null);
     });
     return () => listener.subscription.unsubscribe();
   }, []);
@@ -209,6 +217,16 @@ export default function Home() {
       accent,
       site,
     };
+    if (userEmail && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const supabase = createSupabaseBrowserClient();
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        const { data: category } = await supabase.from("categories").select("id").eq("name", newCompany.category).maybeSingle();
+        const { data: company, error } = await supabase.from("companies").insert({ owner_id: userData.user.id, name, handle, category_id: category?.id ?? null, description, logo_url: logoPreview || null, site_url: site, accent, approved: true }).select("id").single();
+        if (error) { setMessage("⚠️ No se pudo guardar la empresa: " + error.message); return; }
+        setOwnedCompanyId(company.id);
+      }
+    }
     setParticipants(current => [...current, participant]);
     setSelectedId(nextId);
     setShowJoin(false);
@@ -238,7 +256,7 @@ export default function Home() {
     setEditForm({ name: p.name, category: p.category, description: p.banner, site: p.site, logo: p.logo });
   };
 
-  const saveEdit = () => {
+  const saveEdit = async () => {
     if (editId === null) return;
     const name = editForm.name.trim();
     const description = editForm.description.trim();
@@ -246,14 +264,14 @@ export default function Home() {
       setMessage("⚠️ Completá nombre y descripción antes de guardar.");
       return;
     }
-    setParticipants(current => current.map(p => p.id === editId ? {
-      ...p,
-      name,
-      category: editForm.category,
-      banner: description,
-      site: editForm.site.trim() || p.site,
-      logo: editForm.logo || name.slice(0, 1).toUpperCase()
-    } : p));
+    const nextLogo = editForm.logo || name.slice(0, 1).toUpperCase();
+    setParticipants(current => current.map(p => p.id === editId ? { ...p, name, category: editForm.category, banner: description, site: editForm.site.trim() || p.site, logo: nextLogo } : p));
+    if (userEmail && ownedCompanyId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      const supabase = createSupabaseBrowserClient();
+      const { data: category } = await supabase.from("categories").select("id").eq("name", editForm.category).maybeSingle();
+      const { error } = await supabase.from("companies").update({ name, category_id: category?.id ?? null, description, site_url: editForm.site.trim(), logo_url: isImageUrl(nextLogo) ? nextLogo : null }).eq("id", ownedCompanyId);
+      if (error) { setMessage("⚠️ No se pudo guardar en Supabase: " + error.message); return; }
+    }
     setEditId(null);
     setMessage("✏️ Datos actualizados. El banner se regeneró automáticamente.");
   };
