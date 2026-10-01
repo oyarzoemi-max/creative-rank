@@ -50,6 +50,7 @@ export default function Home() {
   const [participants, setParticipants] = useState(initialParticipants);
   const [selectedId, setSelectedId] = useState(2);
   const [profileId, setProfileId] = useState<number | null>(null);
+  const [infoPanel, setInfoPanel] = useState<"faq" | "policies" | "rules" | null>(null);
   const [message, setMessage] = useState("MODO PRUEBA: hacé clic en un participante para explorar su perfil.");
   const [month, setMonth] = useState("OCTUBRE 2026");
 
@@ -198,12 +199,74 @@ export default function Home() {
         </div>
       </section>
 
+      <section style={styles.infoSection}>
+        <div style={styles.sectionHead}>
+          <div>
+            <div style={styles.eyebrow}>04 · INFORMACIÓN</div>
+            <h2 style={styles.h2}>Todo lo que necesitás saber antes de participar.</h2>
+          </div>
+        </div>
+        <div style={styles.infoGrid}>
+          <button onClick={() => setInfoPanel("faq")} style={styles.infoCard}>
+            <span style={styles.infoIcon}>?</span>
+            <div><small>RESPUESTAS RÁPIDAS</small><h3>Preguntas frecuentes</h3><p>Cómo participar, créditos, ranking, clics y resultados.</p></div>
+            <strong>LEER →</strong>
+          </button>
+          <button onClick={() => setInfoPanel("policies")} style={styles.infoCard}>
+            <span style={styles.infoIcon}>✓</span>
+            <div><small>TRANSPARENCIA</small><h3>Políticas</h3><p>Privacidad, publicidad, medición, cuentas y uso responsable.</p></div>
+            <strong>LEER →</strong>
+          </button>
+          <button onClick={() => setInfoPanel("rules")} style={styles.infoCard}>
+            <span style={styles.infoIcon}>🏆</span>
+            <div><small>REGLAS OFICIALES</small><h3>Bases de participación</h3><p>Períodos, categorías, créditos, métricas, cierre y reconocimientos.</p></div>
+            <strong>LEER →</strong>
+          </button>
+        </div>
+      </section>
+
       <section style={styles.testPanel}>
         <div><div style={styles.eyebrow}>MVP TEST CONSOLE</div><h2 style={{...styles.h2,fontSize:32}}>Probá la mecánica en tiempo real.</h2><p style={styles.p}>Seleccioná una marca, sumá clics y mirá cómo cambia su posición.</p></div>
         <button onClick={() => { setMonth("NOVIEMBRE 2026"); resetDemo(); }} style={styles.primary}>SIMULAR NUEVO MES</button>
       </section>
 
       <footer style={styles.footer}><strong>CREATIVE<span style={{color:"#ff3cac"}}>RANK</span></strong><span>MVP · Monthly Competition Engine</span><span>© 2026</span></footer>
+
+      {infoPanel && (
+        <div style={styles.modalBackdrop} onClick={() => setInfoPanel(null)}>
+          <div style={styles.infoModal} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setInfoPanel(null)} style={styles.close}>×</button>
+            <div style={styles.infoModalHead}>
+              <div style={styles.eyebrow}>
+                {infoPanel === "faq" ? "PREGUNTAS FRECUENTES" : infoPanel === "policies" ? "POLÍTICAS" : "BASES DE PARTICIPACIÓN"}
+              </div>
+              <h2 style={styles.h2}>
+                {infoPanel === "faq" ? "Respuestas antes de participar." : infoPanel === "policies" ? "Transparencia y reglas de uso." : "Las reglas de la competencia mensual."}
+              </h2>
+            </div>
+            <div style={styles.infoModalBody}>
+              {infoPanel === "faq" && <>
+                <InfoItem q="¿Qué es Creative Rank?" a="Una competencia mensual de visibilidad donde las marcas pueden promocionarse y competir por atención de la audiencia." />
+                <InfoItem q="¿Los 20.000 créditos congelan mi posición?" a="No. El límite controla la influencia promocional. La respuesta real de la audiencia puede modificar las posiciones durante el mes." />
+                <InfoItem q="¿Qué clics cuentan para el ranking?" a="La mecánica prevista separa las interacciones internas de los clics publicitarios generados por la audiencia. Los datos definitivos se detallarán en las Bases." />
+                <InfoItem q="¿Cuándo termina la competencia?" a="Cada edición tiene un período mensual y los resultados se cierran al finalizar el período establecido." />
+              </>}
+              {infoPanel === "policies" && <>
+                <InfoItem q="Privacidad" a="Los datos de participantes y visitantes deberán utilizarse según la política de privacidad publicada por Creative Rank." />
+                <InfoItem q="Publicidad y medición" a="Las impresiones, visitas y clics se registrarán para medir el rendimiento de las publicaciones y detectar actividad irregular." />
+                <InfoItem q="Uso responsable" a="No se permitirá manipular métricas mediante automatizaciones, tráfico artificial u otras prácticas que alteren la competencia." />
+                <InfoItem q="Datos y cambios" a="Las políticas definitivas deberán publicarse antes de habilitar la participación comercial." />
+              </>}
+              {infoPanel === "rules" && <>
+                <InfoItem q="Período" a="La competencia se organiza por ediciones mensuales. El ranking se cierra al finalizar cada edición." />
+                <InfoItem q="Créditos" a="Los créditos tienen una función promocional y su influencia mensual está limitada a 20.000 por participante." />
+                <InfoItem q="Ranking" a="La clasificación combina la mecánica promocional con métricas de respuesta de audiencia. La fórmula definitiva se publicará en las Bases." />
+                <InfoItem q="Resultados" a="Al cierre se registran los resultados y los reconocimientos correspondientes. Las posiciones vuelven a comenzar en la nueva edición." />
+              </>}
+            </div>
+          </div>
+        </div>
+      )}
 
       {profile && (
         <div style={styles.modalBackdrop} onClick={() => setProfileId(null)}>
@@ -229,6 +292,8 @@ export default function Home() {
 function Metric({label,value}:{label:string;value:string}) {
   return <div style={styles.metric}><small>{label}</small><strong>{value}</strong></div>;
 }
+
+function InfoItem({q,a}:{q:string;a:string}) { return <div style={styles.infoItem}><div style={styles.infoItemQ}>{q}</div><p style={styles.infoItemA}>{a}</p></div>; }
 
 function Step({n,title,text}:{n:string;title:string;text:string}) {
   return <article style={styles.step}><div style={styles.stepN}>{n}</div><h3>{title}</h3><p>{text}</p></article>;
@@ -264,6 +329,7 @@ if (typeof window !== "undefined") {
       button:hover,a:hover{filter:brightness(1.12);transform:translateY(-1px)}
       @media(max-width:1050px){.cr-dashboard{grid-template-columns:1fr!important}.cr-table-card{overflow-x:auto}.cr-winners{grid-template-columns:repeat(3,1fr)!important}}
       @media(max-width:800px){.cr-hero{grid-template-columns:1fr!important}.cr-winners{grid-template-columns:repeat(2,1fr)!important}.cr-steps{grid-template-columns:1fr!important}.cr-table-head{display:none!important}}
+      @media(max-width:900px){.cr-info-grid{grid-template-columns:1fr!important}}
       @media(max-width:620px){.cr-header{flex-direction:column!important;align-items:flex-start!important}.cr-nav{width:100%!important}.cr-row{grid-template-columns:34px 1fr 55px!important}.cr-row>span:nth-child(3),.cr-row>span:nth-child(4),.cr-row>span:nth-child(5),.cr-row>span:nth-child(6),.cr-row>span:nth-child(7){display:none!important}.cr-winners{grid-template-columns:1fr!important}.cr-test{flex-direction:column!important;align-items:flex-start!important}.cr-footer{flex-direction:column!important}.cr-modal-metrics{grid-template-columns:1fr 1fr!important}}
     `;
     document.head.appendChild(style);
