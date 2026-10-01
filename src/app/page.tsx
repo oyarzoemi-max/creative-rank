@@ -240,77 +240,70 @@ function Step({ n, title, text }: { n: string; title: string; text: string }) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  page: { minHeight: "100vh", background: "#07070a", color: "#f7f4ff", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", padding: "24px clamp(16px, 4vw, 64px)" },
-  header: { maxWidth: 1280, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, padding: "14px 0 34px" },
-  logo: { fontSize: 25, fontWeight: 900, letterSpacing: "-0.06em" },
-  logoSpan: {},
-  tagline: { color: "#888493", fontSize: 9, letterSpacing: "0.2em", marginTop: 4 },
-  nav: { display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" },
-  navLink: {},
-  navA: {},
-  hero: { maxWidth: 1280, margin: "0 auto", minHeight: 500, display: "grid", gridTemplateColumns: "1.35fr .65fr", gap: 28, alignItems: "center", padding: "70px 0" },
-  heroCopy: {},
-  eyebrow: { color: "#b892ff", fontSize: 11, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase" as const },
-  heroH1: {},
-  h1: { fontSize: "clamp(58px, 9vw, 126px)", lineHeight: .83, letterSpacing: "-0.085em", margin: "24px 0 30px", fontWeight: 900 },
-  heroCopyP: {},
-  heroButtons: { display: "flex", gap: 12, flexWrap: "wrap", marginTop: 28 },
-  primary: { border: 0, borderRadius: 12, padding: "13px 18px", background: "#8b3dff", color: "white", fontWeight: 800, fontSize: 11, letterSpacing: "0.1em", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" },
-  secondary: { border: "1px solid #30293b", borderRadius: 12, padding: "12px 18px", background: "#111017", color: "#eee9fa", fontWeight: 800, fontSize: 11, letterSpacing: "0.1em", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" },
-  heroCard: { minHeight: 330, border: "1px solid #292330", borderRadius: 28, padding: 30, background: "radial-gradient(circle at 50% 20%, rgba(139,61,255,.24), rgba(15,14,20,.95) 55%)", display: "flex", flexDirection: "column", justifyContent: "center" },
-  cardLabel: { color: "#888493", fontSize: 10, letterSpacing: "0.16em", fontWeight: 800 },
-  bigNumber: { fontSize: 94, lineHeight: 1, fontWeight: 900, letterSpacing: "-0.08em", margin: "14px 0" },
-  cardText: { color: "#aaa5b3", lineHeight: 1.6, maxWidth: 300 },
-  livePill: { marginTop: 30, color: "#d4bbff", fontSize: 10, letterSpacing: "0.12em", fontWeight: 800 },
-  notice: { maxWidth: 1280, margin: "0 auto 30px", border: "1px solid #2b2337", background: "#0e0c12", borderRadius: 14, padding: "12px 16px", color: "#aaa5b3", fontSize: 12 },
-  section: { maxWidth: 1280, margin: "0 auto", padding: "80px 0 30px" },
-  sectionHead: { display: "flex", justifyContent: "space-between", alignItems: "end", gap: 20, marginBottom: 26 },
-  h2: { fontSize: "clamp(30px, 4vw, 52px)", lineHeight: 1, letterSpacing: "-0.06em", margin: "10px 0 0", maxWidth: 760 },
-  monthBadge: { border: "1px solid #332a40", borderRadius: 999, padding: "10px 14px", color: "#c8bdd4", fontSize: 10, letterSpacing: "0.12em", fontWeight: 800 },
-  dashboard: { display: "grid", gridTemplateColumns: "1.45fr .55fr", gap: 18 },
-  tableCard: { border: "1px solid #292330", borderRadius: 22, overflow: "hidden", background: "#0c0b10" },
-  tableHeader: { display: "grid", gridTemplateColumns: "48px minmax(150px,1.5fr) 110px 90px 80px", gap: 10, padding: "15px 18px", color: "#77717f", fontSize: 9, letterSpacing: "0.14em", fontWeight: 800, borderBottom: "1px solid #201c25" },
-  row: { width: "100%", display: "grid", gridTemplateColumns: "48px minmax(150px,1.5fr) 110px 90px 80px", gap: 10, alignItems: "center", padding: "16px 18px", border: 0, borderBottom: "1px solid #19171d", background: "transparent", color: "#e9e4f0", textAlign: "left", cursor: "pointer", fontSize: 12 },
-  rowSelected: { background: "rgba(139,61,255,.09)" },
-  rank: { color: "#c8b8da", fontSize: 15 },
-  person: { display: "flex", flexDirection: "column", gap: 3 },
-  sideCard: { border: "1px solid #292330", borderRadius: 22, padding: 22, background: "linear-gradient(180deg,#100d15,#0c0b10)" },
-  sideCardH3: {},
+  page: { minHeight: "100vh", background: "radial-gradient(circle at 10% 0%, #251044 0, transparent 30%), radial-gradient(circle at 90% 10%, #063c52 0, transparent 28%), #07070d", color: "#f8f7ff", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", padding: "0 22px 40px" },
+  header: { maxWidth: 1380, margin: "0 auto", padding: "22px 0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20, borderBottom: "1px solid rgba(255,255,255,.08)" },
+  logo: { fontSize: 27, fontWeight: 950, letterSpacing: "-.07em" },
+  tagline: { color: "#8e8ba0", fontSize: 9, letterSpacing: ".2em", marginTop: 4 },
+  nav: { display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" },
+  navA: { color: "#bcb8ca", textDecoration: "none", fontSize: 10, fontWeight: 800, letterSpacing: ".12em", padding: "9px 10px" },
+  hero: { maxWidth: 1380, margin: "0 auto", minHeight: 510, display: "grid", gridTemplateColumns: "1.25fr .75fr", gap: 22, alignItems: "center", padding: "65px 0 45px" },
+  heroCopy: { position: "relative" },
+  eyebrow: { color: "#65f4d0", fontSize: 10, fontWeight: 900, letterSpacing: ".18em", textTransform: "uppercase" as const },
+  h1: { fontSize: "clamp(54px, 8vw, 112px)", lineHeight: .86, letterSpacing: "-.085em", margin: "18px 0 25px", fontWeight: 950 },
+  heroCopyP: { color: "#b5b0c1", fontSize: 16, lineHeight: 1.65, maxWidth: 720, margin: 0 },
+  heroButtons: { display: "flex", gap: 10, flexWrap: "wrap", marginTop: 27 },
+  primary: { border: 0, borderRadius: 13, padding: "13px 18px", background: "linear-gradient(135deg,#ff3cac,#784cff 55%,#25d9ff)", color: "white", fontWeight: 900, fontSize: 10, letterSpacing: ".11em", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", boxShadow: "0 10px 35px rgba(120,76,255,.28)" },
+  secondary: { border: "1px solid rgba(255,255,255,.14)", borderRadius: 13, padding: "12px 18px", background: "rgba(255,255,255,.04)", color: "#f0edf7", fontWeight: 900, fontSize: 10, letterSpacing: ".11em", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center", backdropFilter: "blur(12px)" },
+  heroCard: { minHeight: 365, border: "1px solid rgba(255,255,255,.12)", borderRadius: 30, padding: 30, background: "linear-gradient(145deg,rgba(255,60,172,.16),rgba(37,217,255,.08) 48%,rgba(12,11,20,.94))", boxShadow: "inset 0 1px rgba(255,255,255,.1), 0 25px 70px rgba(0,0,0,.35)", display: "flex", flexDirection: "column", justifyContent: "center", overflow: "hidden" },
+  cardLabel: { color: "#8e8ba0", fontSize: 9, letterSpacing: ".18em", fontWeight: 900 },
+  bigNumber: { fontSize: 100, lineHeight: 1, fontWeight: 950, letterSpacing: "-.09em", margin: "12px 0", background: "linear-gradient(90deg,#fff,#65f4d0,#25d9ff)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" },
+  cardText: { color: "#b5b0c1", lineHeight: 1.6, maxWidth: 330 },
+  livePill: { marginTop: 28, color: "#65f4d0", fontSize: 10, letterSpacing: ".12em", fontWeight: 900 },
+  notice: { maxWidth: 1380, margin: "0 auto 22px", border: "1px solid rgba(101,244,208,.2)", background: "rgba(101,244,208,.06)", borderRadius: 14, padding: "12px 16px", color: "#b9f9e8", fontSize: 11 },
+  section: { maxWidth: 1380, margin: "0 auto", padding: "72px 0 20px" },
+  sectionHead: { display: "flex", justifyContent: "space-between", alignItems: "end", gap: 20, marginBottom: 24 },
+  h2: { fontSize: "clamp(30px, 4vw, 54px)", lineHeight: 1, letterSpacing: "-.065em", margin: "9px 0 0", maxWidth: 800 },
+  monthBadge: { border: "1px solid rgba(255,255,255,.14)", borderRadius: 999, padding: "9px 13px", color: "#d5d0df", fontSize: 9, letterSpacing: ".13em", fontWeight: 900, background: "rgba(255,255,255,.04)" },
+  dashboard: { display: "grid", gridTemplateColumns: "1.4fr .6fr", gap: 16 },
+  tableCard: { border: "1px solid rgba(255,255,255,.11)", borderRadius: 24, overflow: "hidden", background: "rgba(12,11,18,.86)", boxShadow: "0 20px 60px rgba(0,0,0,.2)" },
+  tableHeader: { display: "grid", gridTemplateColumns: "50px minmax(160px,1.5fr) 110px 90px 80px", gap: 10, padding: "15px 18px", color: "#777487", fontSize: 8, letterSpacing: ".14em", fontWeight: 900, borderBottom: "1px solid rgba(255,255,255,.07)" },
+  row: { width: "100%", display: "grid", gridTemplateColumns: "50px minmax(160px,1.5fr) 110px 90px 80px", gap: 10, alignItems: "center", padding: "16px 18px", border: 0, borderBottom: "1px solid rgba(255,255,255,.055)", background: "transparent", color: "#eeeaf5", textAlign: "left", cursor: "pointer", fontSize: 12, transition: "all .18s" },
+  rowSelected: { background: "linear-gradient(90deg,rgba(255,60,172,.11),rgba(37,217,255,.06))", boxShadow: "inset 3px 0 #ff3cac" },
+  rank: { color: "#f4c7ff", fontSize: 15 },
+  person: { display: "flex", flexDirection: "column", gap: 4 },
+  sideCard: { border: "1px solid rgba(255,255,255,.12)", borderRadius: 24, padding: 22, background: "linear-gradient(160deg,rgba(120,76,255,.15),rgba(12,11,18,.94))", boxShadow: "0 20px 60px rgba(0,0,0,.25)" },
+  sideCardH3: { margin: "10px 0 4px", fontSize: 34, letterSpacing: "-.06em" },
   metrics: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "20px 0" },
-  metric: { border: "1px solid #25212b", borderRadius: 12, padding: 12, background: "#0b0a0f", display: "flex", flexDirection: "column", gap: 7 },
-  progressLabel: { display: "flex", justifyContent: "space-between", color: "#827b8c", fontSize: 9, marginTop: 10 },
-  progress: { height: 7, background: "#211c28", borderRadius: 99, overflow: "hidden", margin: "8px 0 18px" },
+  metric: { border: "1px solid rgba(255,255,255,.08)", borderRadius: 13, padding: 12, background: "rgba(0,0,0,.2)", display: "flex", flexDirection: "column", gap: 7 },
+  progressLabel: { display: "flex", justifyContent: "space-between", color: "#8e8ba0", fontSize: 9, marginTop: 10 },
+  progress: { height: 8, background: "#211d2b", borderRadius: 99, overflow: "hidden", margin: "8px 0 18px" },
   actionGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 },
-  hint: { display: "block", color: "#706a78", lineHeight: 1.5, marginTop: 14 },
+  hint: { display: "block", color: "#777487", lineHeight: 1.5, marginTop: 14 },
   winnerGrid: { display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 },
-  winnerCard: { border: "1px solid #292330", borderRadius: 20, padding: 18, background: "#0c0b10" },
-  winnerRank: { fontSize: 24, marginBottom: 22 },
-  winnerStats: { display: "flex", justifyContent: "space-between", alignItems: "end", marginTop: 24, color: "#77717f", fontSize: 10 },
+  winnerCard: { border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: 18, background: "linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.015))", transition: "transform .2s" },
+  winnerRank: { fontSize: 24, marginBottom: 20 },
+  winnerStats: { display: "flex", justifyContent: "space-between", alignItems: "end", marginTop: 24, color: "#777487", fontSize: 10 },
   steps: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 },
-  step: { border: "1px solid #292330", borderRadius: 20, padding: 22, background: "#0c0b10" },
-  stepN: { color: "#b892ff", fontWeight: 900, fontSize: 12, letterSpacing: ".1em" },
-  testPanel: { maxWidth: 1280, margin: "80px auto 20px", border: "1px solid #3a2b4d", borderRadius: 26, padding: 28, background: "linear-gradient(120deg,rgba(139,61,255,.13),rgba(12,11,16,.95))", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20 },
-  footer: { maxWidth: 1280, margin: "60px auto 0", padding: "30px 0", borderTop: "1px solid #201c25", color: "#6e6876", display: "flex", justifyContent: "space-between", gap: 16, fontSize: 10 },
-  smallButton: { border: "1px solid #30293b", background: "#111017", color: "#aaa5b3", borderRadius: 9, padding: "8px 10px", fontSize: 9, fontWeight: 800, cursor: "pointer" },
-  personSmall: {},
-  p: {},
+  step: { border: "1px solid rgba(255,255,255,.1)", borderRadius: 20, padding: 22, background: "rgba(255,255,255,.035)" },
+  stepN: { color: "#ff64bb", fontWeight: 950, fontSize: 12, letterSpacing: ".1em" },
+  testPanel: { maxWidth: 1380, margin: "72px auto 20px", border: "1px solid rgba(255,60,172,.25)", borderRadius: 26, padding: 28, background: "linear-gradient(110deg,rgba(255,60,172,.12),rgba(37,217,255,.07),rgba(12,11,18,.95))", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20 },
+  footer: { maxWidth: 1380, margin: "55px auto 0", padding: "28px 0", borderTop: "1px solid rgba(255,255,255,.08)", color: "#6e6a79", display: "flex", justifyContent: "space-between", gap: 16, fontSize: 10 },
+  smallButton: { border: "1px solid rgba(255,255,255,.14)", background: "rgba(255,255,255,.04)", color: "#aaa6b7", borderRadius: 9, padding: "8px 10px", fontSize: 9, fontWeight: 900, cursor: "pointer" },
+  p: { margin: 0, color: "#8e8ba0" },
+  personSmall: { color: "#777487", fontSize: 10 },
 };
 
-styles.heroCopyP = { color: "#aaa5b3", fontSize: 17, lineHeight: 1.65, maxWidth: 690, margin: 0 };
-styles.h1 = { ...styles.h1, };
-styles.logo = { ...styles.logo };
-styles.h2 = { ...styles.h2 };
-styles.sideCardH3 = { margin: "10px 0 4px", fontSize: 34, letterSpacing: "-0.06em" };
-styles.p = { margin: 0, color: "#8b8493" };
-styles.personSmall = { color: "#787180", fontSize: 10 };
-
 if (typeof window !== "undefined") {
-  // Responsive fallback without requiring another CSS dependency.
   const styleId = "creative-rank-mvp-responsive";
   if (!document.getElementById(styleId)) {
     const style = document.createElement("style");
     style.id = styleId;
     style.textContent = `
+      * { box-sizing: border-box; }
+      html { scroll-behavior: smooth; }
+      button:hover, a:hover { filter: brightness(1.14); transform: translateY(-1px); }
+      .cr-hero, .cr-dashboard { grid-template-columns: 1fr 1fr !important; }
+      .cr-winners { grid-template-columns: repeat(5,1fr) !important; }
       @media (max-width: 900px) {
         .cr-hero, .cr-dashboard { grid-template-columns: 1fr !important; }
         .cr-winners { grid-template-columns: repeat(2,1fr) !important; }
