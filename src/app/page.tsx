@@ -12,6 +12,7 @@ type Participant = {
   joinedAt: number;
   handle: string;
   banner: string;
+  logo: string;
   accent: string;
   site: string;
 };
@@ -19,16 +20,16 @@ type Participant = {
 const MONTHLY_CAP = 20000;
 
 const initialParticipants: Participant[] = [
-  { id: 1, name: "Luma Studio", category: "Diseño", credits: 20000, clicks: 820, impressions: 11800, joinedAt: 1, handle: "@lumastudio", banner: "Diseño que transforma ideas en experiencias.", accent: "#ff3cac", site: "https://example.com/luma" },
-  { id: 2, name: "Nova Digital", category: "Tecnología", credits: 20000, clicks: 1120, impressions: 14300, joinedAt: 2, handle: "@novadigital", banner: "Tecnología que conecta tu próximo salto.", accent: "#25d9ff", site: "https://example.com/nova" },
-  { id: 3, name: "Atlas Travel", category: "Viajes", credits: 20000, clicks: 640, impressions: 9200, joinedAt: 3, handle: "@atlastravel", banner: "El próximo destino empieza acá.", accent: "#65f4d0", site: "https://example.com/atlas" },
-  { id: 4, name: "Patagonia Lab", category: "Business", credits: 17000, clicks: 980, impressions: 12100, joinedAt: 4, handle: "@patagonialab", banner: "Ideas que se convierten en negocios.", accent: "#ffb52e", site: "https://example.com/patagonia" },
-  { id: 5, name: "Marea Brand", category: "Branding", credits: 15000, clicks: 760, impressions: 10100, joinedAt: 5, handle: "@mareabrand", banner: "Hacé que tu marca sea imposible de ignorar.", accent: "#ff7a45", site: "https://example.com/marea" },
-  { id: 6, name: "Pixel Norte", category: "Diseño", credits: 12000, clicks: 540, impressions: 7800, joinedAt: 6, handle: "@pixelnorte", banner: "Diseño digital con identidad propia.", accent: "#9d7cff", site: "https://example.com/pixel" },
-  { id: 7, name: "Andes Tech", category: "Tecnología", credits: 10000, clicks: 430, impressions: 6400, joinedAt: 7, handle: "@andestech", banner: "Soluciones para empresas que avanzan.", accent: "#25d9ff", site: "https://example.com/andes" },
-  { id: 8, name: "Sur Experience", category: "Viajes", credits: 8000, clicks: 390, impressions: 5700, joinedAt: 8, handle: "@surexperience", banner: "Experiencias que quedan para siempre.", accent: "#65f4d0", site: "https://example.com/sur" },
-  { id: 9, name: "Cumbre Store", category: "Comercio", credits: 6000, clicks: 260, impressions: 4200, joinedAt: 9, handle: "@cumbrestore", banner: "Encontrá lo que estabas buscando.", accent: "#ffd447", site: "https://example.com/cumbre" },
-  { id: 10, name: "Delta Creative", category: "Creativo", credits: 3000, clicks: 180, impressions: 2600, joinedAt: 10, handle: "@deltacreative", banner: "Creatividad que conecta personas y marcas.", accent: "#b46cff", site: "https://example.com/delta" },
+  { id: 1, name: "Luma Studio", category: "Diseño", credits: 20000, clicks: 820, impressions: 11800, joinedAt: 1, handle: "@lumastudio", logo: "L", banner: "Diseño que transforma ideas en experiencias.", accent: "#ff3cac", site: "https://example.com/luma" },
+  { id: 2, name: "Nova Digital", category: "Tecnología", credits: 20000, clicks: 1120, impressions: 14300, joinedAt: 2, handle: "@novadigital", logo: "N", banner: "Tecnología que conecta tu próximo salto.", accent: "#25d9ff", site: "https://example.com/nova" },
+  { id: 3, name: "Atlas Travel", category: "Viajes", credits: 20000, clicks: 640, impressions: 9200, joinedAt: 3, handle: "@atlastravel", logo: "A", banner: "El próximo destino empieza acá.", accent: "#65f4d0", site: "https://example.com/atlas" },
+  { id: 4, name: "Patagonia Lab", category: "Business", credits: 17000, clicks: 980, impressions: 12100, joinedAt: 4, handle: "@patagonialab", logo: "P", banner: "Ideas que se convierten en negocios.", accent: "#ffb52e", site: "https://example.com/patagonia" },
+  { id: 5, name: "Marea Brand", category: "Branding", credits: 15000, clicks: 760, impressions: 10100, joinedAt: 5, handle: "@mareabrand", logo: "M", banner: "Hacé que tu marca sea imposible de ignorar.", accent: "#ff7a45", site: "https://example.com/marea" },
+  { id: 6, name: "Pixel Norte", category: "Diseño", credits: 12000, clicks: 540, impressions: 7800, joinedAt: 6, handle: "@pixelnorte", logo: "P", banner: "Diseño digital con identidad propia.", accent: "#9d7cff", site: "https://example.com/pixel" },
+  { id: 7, name: "Andes Tech", category: "Tecnología", credits: 10000, clicks: 430, impressions: 6400, joinedAt: 7, handle: "@andestech", logo: "A", banner: "Soluciones para empresas que avanzan.", accent: "#25d9ff", site: "https://example.com/andes" },
+  { id: 8, name: "Sur Experience", category: "Viajes", credits: 8000, clicks: 390, impressions: 5700, joinedAt: 8, handle: "@surexperience", logo: "S", banner: "Experiencias que quedan para siempre.", accent: "#65f4d0", site: "https://example.com/sur" },
+  { id: 9, name: "Cumbre Store", category: "Comercio", credits: 6000, clicks: 260, impressions: 4200, joinedAt: 9, handle: "@cumbrestore", logo: "C", banner: "Encontrá lo que estabas buscando.", accent: "#ffd447", site: "https://example.com/cumbre" },
+  { id: 10, name: "Delta Creative", category: "Creativo", credits: 3000, clicks: 180, impressions: 2600, joinedAt: 10, handle: "@deltacreative", logo: "D", banner: "Creatividad que conecta personas y marcas.", accent: "#b46cff", site: "https://example.com/delta" },
 ];
 
 const scoreFor = (p: Participant) => {
@@ -165,7 +166,7 @@ export default function Home() {
               <div style={{ ...styles.bannerGlow, background: selected.accent }} />
               <span style={styles.profileRank}>#{selected.rank}</span>
               <span style={{ ...styles.category, borderColor: selected.accent, color: selected.accent }}>{selected.category}</span>
-              <div style={styles.avatar}>{selected.name.slice(0,1)}</div>
+              <div style={{ ...styles.generatedLogo, borderColor: selected.accent }}>{selected.logo}</div><div style={styles.generatedBannerName}>{selected.name}</div><div style={styles.generatedBannerDesc}>{selected.banner}</div>
               <span style={styles.bannerClickHint}>CLICK PUBLICITARIO · +1</span>
             </button>
             <div style={styles.eyebrow}>SELECTED PARTICIPANT</div>
@@ -298,7 +299,7 @@ export default function Home() {
               title="Click publicitario de prueba"
             >
               <span style={styles.modalRank}>#{profile.rank}</span><span style={styles.modalLive}>● BANNER ACTIVO · CLICK +1</span>
-              <div><small>CREATIVE RANK · {month}</small><h2>{profile.name}</h2><p>{profile.banner}</p></div>
+              <div style={styles.modalGeneratedBrand}><div style={{ ...styles.generatedLogoLarge, borderColor: "#fff" }}>{profile.logo}</div><div><small>CREATIVE RANK · {month}</small><h2>{profile.name}</h2><p>{profile.banner}</p><span style={styles.generatedCategory}>{profile.category}</span></div></div>
             </button>
             <div style={styles.modalBody}>
               <div><div style={styles.eyebrow}>{profile.category}</div><h3>{profile.handle}</h3></div>
