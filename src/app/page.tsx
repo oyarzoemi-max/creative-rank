@@ -1,1642 +1,333 @@
 'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import type { Session } from "@supabase/supabase-js";
-import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { useMemo, useState } from "react";
 
-type Category = "DESIGN" | "COPY" | "BUILD";
-
-type BidEntry = {
-  rank: number;
+type Participant = {
+  id: number;
   name: string;
-  specialty: string;
-  bid: string;
-  bidValue: number;
-  score: string;
-  minimumRequired: number;
+  category: string;
+  credits: number;
+  clicks: number;
+  impressions: number;
+  joinedAt: number;
 };
 
-type RoundStatus = "upcoming" | "active" | "showcase" | "closed";
+const MONTHLY_CAP = 20000;
 
-type RoundRecord = {
-  id: string;
-  title?: string | null;
-  status: RoundStatus | string;
-  bidding_starts_at: string;
-  bidding_ends_at: string;
-  showcase_starts_at?: string | null;
-  showcase_ends_at?: string | null;
-  created_at?: string;
-};
-
-type ActiveBidRecord = {
-  id: string;
-  amount: number | string | null;
-  creators?: {
-    name?: string | null;
-    specialty?: string | null;
-  } | null;
-};
-
-type DemoFormState = {
-  creatorName: string;
-  professionalTitle: string;
-  bio: string;
-  location: string;
-  email: string;
-  portfolioUrl: string;
-  socialUrl: string;
-  profileImageUrl: string;
-  category: Category;
-  specialty: string;
-  projectTitle: string;
-  projectImageUrl: string;
-  projectUrl: string;
-  projectDescription: string;
-  desiredPosition: number | null;
-  bidAmount: string;
-};
-
-type DemoSuccessState = {
-  creatorName: string;
-  position: number;
-  category: Category;
-  specialty: string;
-  bidAmount: number;
-};
-
-const navItems = [
-  { label: "LIVE BIDS", id: "live-bids" },
-  { label: "SHOWCASE", id: "showcase" },
-  { label: "TRENDING", id: "trending" },
-  { label: "HOW IT WORKS", id: "how-it-works" },
+const initialParticipants: Participant[] = [
+  { id: 1, name: "Luma Studio", category: "Design", credits: 20000, clicks: 820, impressions: 11800, joinedAt: 1 },
+  { id: 2, name: "Nova Digital", category: "Technology", credits: 20000, clicks: 1120, impressions: 14300, joinedAt: 2 },
+  { id: 3, name: "Atlas Travel", category: "Travel", credits: 20000, clicks: 640, impressions: 9200, joinedAt: 3 },
+  { id: 4, name: "Patagonia Lab", category: "Business", credits: 17000, clicks: 980, impressions: 12100, joinedAt: 4 },
+  { id: 5, name: "Marea Brand", category: "Branding", credits: 15000, clicks: 760, impressions: 10100, joinedAt: 5 },
+  { id: 6, name: "Pixel Norte", category: "Design", credits: 12000, clicks: 540, impressions: 7800, joinedAt: 6 },
+  { id: 7, name: "Andes Tech", category: "Technology", credits: 10000, clicks: 430, impressions: 6400, joinedAt: 7 },
+  { id: 8, name: "Sur Experience", category: "Travel", credits: 8000, clicks: 390, impressions: 5700, joinedAt: 8 },
+  { id: 9, name: "Cumbre Store", category: "Commerce", credits: 6000, clicks: 260, impressions: 4200, joinedAt: 9 },
+  { id: 10, name: "Delta Creative", category: "Creative", credits: 3000, clicks: 180, impressions: 2600, joinedAt: 10 },
 ];
 
-const conceptCards = [
-  {
-    title: "COMPETE",
-    text: "Bid for real visibility every 48 hours.",
-  },
-  {
-    title: "SHOWCASE",
-    text: "Top 10 get featured for the world to see.",
-  },
-  {
-    title: "GET DISCOVERED",
-    text: "Brands find talent that delivers.",
-  },
-];
-
-const howItWorksSteps = [
-  {
-    step: "01",
-    title: "BUILD YOUR PROFILE",
-    text: "Show the portfolio and skills that prove your creative edge.",
-  },
-  {
-    step: "02",
-    title: "PLACE A BID",
-    text: "Compete for the best position in the next 48-hour ranking cycle.",
-  },
-  {
-    step: "03",
-    title: "EARN ATTENTION",
-    text: "Top performers get discovered, featured, and validated by the market.",
-  },
-];
-
-const categoryOptions: Category[] = ["DESIGN", "COPY", "BUILD"];
-
-const specialtyOptions: Record<Category, string[]> = {
-  DESIGN: ["UI/UX Design", "Branding", "Graphic Design", "Art Direction", "Illustration"],
-  COPY: ["Copywriting", "Content Marketing", "Brand Voice", "Email Marketing", "SEO Copy"],
-  BUILD: ["Web Development", "App Development", "No-Code", "Frontend Development", "Product Design Systems"],
+const scoreFor = (p: Participant) => {
+  // MVP rule: promotional credits establish the base;
+  // real audience response adds the competitive movement.
+  const creditPoints = (p.credits / MONTHLY_CAP) * 500;
+  const clickPoints = Math.min(p.clicks / 2, 400);
+  const ctr = p.impressions > 0 ? p.clicks / p.impressions : 0;
+  const ctrPoints = Math.min(ctr * 1000, 100);
+  return Math.round(creditPoints + clickPoints + ctrPoints);
 };
 
-const createDefaultDemoForm = (): DemoFormState => ({
-  creatorName: "",
-  professionalTitle: "",
-  bio: "",
-  location: "",
-  email: "",
-  portfolioUrl: "",
-  socialUrl: "",
-  profileImageUrl: "",
-  category: "DESIGN",
-  specialty: specialtyOptions.DESIGN[0],
-  projectTitle: "",
-  projectImageUrl: "",
-  projectUrl: "",
-  projectDescription: "",
-  desiredPosition: null,
-  bidAmount: "",
-});
+const rankParticipants = (items: Participant[]) =>
+  [...items]
+    .sort((a, b) => {
+      const scoreDiff = scoreFor(b) - scoreFor(a);
+      if (scoreDiff !== 0) return scoreDiff;
+      if (b.clicks !== a.clicks) return b.clicks - a.clicks;
+      return a.joinedAt - b.joinedAt;
+    })
+    .map((p, index) => ({ ...p, rank: index + 1, score: scoreFor(p) }));
 
-const formatCurrencyCompact = (value: number) => {
-  if (value >= 1000) {
-    return `$${(value / 1000).toFixed(1)}K`;
-  }
-
-  return `$${value.toLocaleString()}`;
-};
-
-const formatCountdown = (milliseconds: number) => {
-  const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
-  const hours = Math.floor(totalSeconds / 3600);
-  const minutes = Math.floor((totalSeconds % 3600) / 60);
-  const seconds = totalSeconds % 60;
-
-  return [hours, minutes, seconds]
-    .map((value) => String(value).padStart(2, "0"))
-    .join(":");
-};
-
-const normalizeRoundStatus = (status?: string | null): RoundStatus => {
-  const normalized = status?.toLowerCase?.() ?? "upcoming";
-
-  if (normalized === "active") return "active";
-  if (normalized === "showcase") return "showcase";
-  if (normalized === "closed") return "closed";
-  return "upcoming";
-};
-
-const getRoundPhase = (round: RoundRecord | null): RoundStatus => {
-  if (!round) {
-    return "upcoming";
-  }
-
-  return normalizeRoundStatus(round.status);
-};
-
-const getRoundDeadline = (round: RoundRecord | null) => {
-  if (!round) {
-    return 0;
-  }
-
-  const phase = getRoundPhase(round);
-  const timestamp =
-    phase === "showcase"
-      ? round.showcase_ends_at
-      : phase === "active"
-        ? round.bidding_ends_at
-        : phase === "upcoming"
-          ? round.bidding_starts_at
-          : round.bidding_ends_at;
-
-  if (!timestamp) {
-    return 0;
-  }
-
-  const parsed = Number(new Date(timestamp).getTime());
-  if (Number.isFinite(parsed)) {
-    return parsed;
-  }
-
-  return 0;
-};
-
-const normalizeBidEntries = (rows: ActiveBidRecord[] | null | undefined): BidEntry[] => {
-  if (!rows || rows.length === 0) {
-    return [];
-  }
-
-  return rows.slice(0, 10).map((row, index) => {
-    const amount = Number(row.amount ?? 0);
-
-    return {
-      rank: index + 1,
-      name: row.creators?.name ?? `Creator ${index + 1}`,
-      specialty: row.creators?.specialty ?? "Creative",
-      bid: formatCurrencyCompact(amount),
-      bidValue: amount,
-      score: amount > 0 ? `${amount / 1000}`.slice(0, 4) : "NEW",
-      minimumRequired: Math.max(amount * 0.95, 1000),
-    };
-  });
-};
-
-const loadCurrentRound = async (): Promise<RoundRecord | null> => {
-  const supabase = createSupabaseBrowserClient();
-
-  try {
-    const { error: transitionError } = await supabase.rpc("process_round_transitions");
-
-    if (transitionError) {
-      console.warn("Could not process round transitions:", transitionError.message);
-    }
-
-    const { data: activeRounds, error: activeSelectError } = await supabase
-      .from("rounds")
-      .select("*")
-      .eq("status", "active")
-      .order("bidding_starts_at", { ascending: false })
-      .limit(1);
-
-    if (activeSelectError) {
-      console.warn("Could not load active round:", activeSelectError.message);
-      return null;
-    }
-
-    if (activeRounds?.[0]) {
-      return activeRounds[0] as RoundRecord;
-    }
-
-    const { data: showcaseRounds, error: showcaseSelectError } = await supabase
-      .from("rounds")
-      .select("*")
-      .eq("status", "showcase")
-      .order("showcase_starts_at", { ascending: false })
-      .limit(1);
-
-    if (showcaseSelectError) {
-      console.warn("Could not load showcase round:", showcaseSelectError.message);
-      return null;
-    }
-
-    return showcaseRounds?.[0] as RoundRecord | undefined ?? null;
-  } catch (error) {
-    console.warn("Round creation check failed:", error);
-    return null;
-  }
-};
-
-const isValidUrl = (value: string) => {
-  if (!value.trim()) {
-    return false;
-  }
-
-  try {
-    const url = new URL(value);
-    return ["http:", "https:"].includes(url.protocol);
-  } catch {
-    return false;
-  }
-};
-
-const scrollToSection = (sectionId: string) => {
-  document.getElementById(sectionId)?.scrollIntoView({
-    behavior: "smooth",
-    block: "start",
-  });
-};
+const money = (n: number) => `$${n.toLocaleString("en-US")}`;
 
 export default function Home() {
-  const [activeRound, setActiveRound] = useState<RoundRecord | null>(null);
-  const [roundLoaded, setRoundLoaded] = useState(false);
-  const [now, setNow] = useState(Date.now());
-  const [liveBids, setLiveBids] = useState<BidEntry[]>([]);
-  const [selectedBid, setSelectedBid] = useState<BidEntry | null>(null);
-  const [session, setSession] = useState<Session | null>(null);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<"sign-in" | "sign-up" | "forgot-password">("sign-up");
-  const [authEmail, setAuthEmail] = useState("");
-  const [authPassword, setAuthPassword] = useState("");
-  const [authLoading, setAuthLoading] = useState(false);
-  const [authError, setAuthError] = useState("");
-  const [authInfo, setAuthInfo] = useState("");
-  const [demoFlowOpen, setDemoFlowOpen] = useState(false);
-  const [demoStep, setDemoStep] = useState(1);
-  const [demoForm, setDemoForm] = useState<DemoFormState>(createDefaultDemoForm());
-  const [demoErrors, setDemoErrors] = useState<Record<string, string>>({});
-  const [demoSuccess, setDemoSuccess] = useState<DemoSuccessState | null>(null);
-
-  const totalDemoSteps = 6;
-
-  useEffect(() => {
-    const timer = window.setInterval(() => {
-      setNow(Date.now());
-    }, 1000);
-
-    return () => window.clearInterval(timer);
-  }, []);
-
-  useEffect(() => {
-    const supabase = createSupabaseBrowserClient();
-
-    supabase.auth.getSession().then(({ data: { session: currentSession } }) => {
-      setSession(currentSession);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, currentSession) => {
-      setSession(currentSession);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-
-    if (params.get("auth") !== "login") {
-      return;
-    }
-
-    window.history.replaceState({}, document.title, window.location.pathname);
-
-    const openLogin = window.setTimeout(() => {
-      setAuthMode("sign-in");
-      setAuthError("");
-      setAuthInfo("");
-      setAuthModalOpen(true);
-    }, 0);
-
-    return () => window.clearTimeout(openLogin);
-  }, []);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    const loadActiveRound = async () => {
-      const round = await loadCurrentRound();
-
-      if (!isMounted) {
-        return;
-      }
-
-      setActiveRound(round);
-      setRoundLoaded(true);
-    };
-
-    loadActiveRound();
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!activeRound?.id) {
-      setLiveBids([]);
-      return;
-    }
-
-    let isMounted = true;
-
-    const loadRoundBids = async () => {
-      const supabase = createSupabaseBrowserClient();
-
-      try {
-        const { data, error } = await supabase
-          .from("bids")
-          .select("id, amount, creators(name, specialty)")
-          .eq("round_id", activeRound.id)
-          .order("amount", { ascending: false })
-          .limit(10);
-
-        if (error) {
-          console.warn("Round bids unavailable:", error.message);
-          if (isMounted) {
-            setLiveBids([]);
-          }
-          return;
-        }
-
-        if (!isMounted) {
-          return;
-        }
-
-        const nextBids = normalizeBidEntries(data as ActiveBidRecord[] | null);
-        setLiveBids(nextBids);
-      } catch (error) {
-        console.warn("Could not load round bids from Supabase:", error);
-        if (isMounted) {
-          setLiveBids([]);
-        }
-      }
-    };
-
-    loadRoundBids();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [activeRound]);
-
-  useEffect(() => {
-    if (!activeRound) {
-      return;
-    }
-
-    const deadline = getRoundDeadline(activeRound);
-
-    if (Date.now() < deadline) {
-      return;
-    }
-
-    void (async () => {
-      const round = await loadCurrentRound();
-      setActiveRound(round);
-      setRoundLoaded(true);
-
-      if (getRoundPhase(round) !== "active") {
-        setSelectedBid(null);
-        setDemoFlowOpen(false);
-      }
-    })();
-  }, [activeRound, now]);
-
-  const deadline = useMemo(
-    () => (roundLoaded ? getRoundDeadline(activeRound) : now),
-    [activeRound, now, roundLoaded],
-  );
-
-  const countdown = useMemo(
-    () => formatCountdown(Math.max(deadline - now, 0)),
-    [deadline, now],
-  );
-
-  const isBiddingActive = roundLoaded && getRoundPhase(activeRound) === "active";
-  const isShowcaseActive = roundLoaded && getRoundPhase(activeRound) === "showcase";
-
-  const currentLeader = useMemo(() => liveBids[0] ?? null, [liveBids]);
-
-  const showcaseCards = useMemo(
-    () => liveBids.map(({ name, specialty, score }) => ({ name, specialty, score })),
-    [liveBids],
-  );
-
-  const trendingCreators = useMemo(
-    () => liveBids.slice(0, 5).map((creator, index) => ({
-      rank: index + 1,
-      name: creator.name,
-      specialty: creator.specialty,
-      score: Number.parseFloat(creator.score) || 0,
-    })),
-    [liveBids],
-  );
-
-  const currentPositionData = demoForm.desiredPosition
-    ? liveBids.find((entry) => entry.rank === demoForm.desiredPosition) ?? null
-    : null;
-
-  const openDemoFlow = (preselectedPosition?: number) => {
-    if (getRoundPhase(activeRound) !== "active") {
-      return;
-    }
-
-    if (!session) {
-      setAuthMode("sign-up");
-      setAuthError("");
-      setAuthInfo("");
-      setAuthModalOpen(true);
-      return;
-    }
-
-    setDemoFlowOpen(true);
-    setDemoStep(1);
-    setDemoErrors({});
-    setDemoSuccess(null);
-    setDemoForm({
-      ...createDefaultDemoForm(),
-      desiredPosition: preselectedPosition ?? null,
-      bidAmount: preselectedPosition ? String(liveBids.find((entry) => entry.rank === preselectedPosition)?.minimumRequired ?? 0) : "",
-    });
-    setSelectedBid(null);
-  };
-
-  const handleAuthSubmit = async () => {
-    const email = authEmail.trim();
-    const password = authPassword.trim();
-
-    if (!email) {
-      setAuthError("Email is required.");
-      return;
-    }
-
-    if (authMode !== "forgot-password" && !password) {
-      setAuthError("Email and password are required.");
-      return;
-    }
-
-    setAuthLoading(true);
-    setAuthError("");
-    setAuthInfo("");
-
-    try {
-      const supabase = createSupabaseBrowserClient();
-
-      if (authMode === "forgot-password") {
-        const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: "https://creative-rank.vercel.app/reset-password",
-        });
-
-        if (resetError) {
-          throw resetError;
-        }
-
-        setAuthInfo("If an account exists for this email, you will receive a password reset link shortly.");
-        return;
-      }
-
-      if (authMode === "sign-up") {
-        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-        });
-
-        if (signUpError) {
-          throw signUpError;
-        }
-
-        if (signUpData.session) {
-          setSession(signUpData.session);
-          setAuthModalOpen(false);
-          setAuthEmail("");
-          setAuthPassword("");
-          setSelectedBid(null);
-          setDemoFlowOpen(true);
-          setDemoStep(1);
-          setDemoErrors({});
-          setDemoSuccess(null);
-          setDemoForm(createDefaultDemoForm());
-          return;
-        }
-
-        setAuthInfo("Account created. Confirm your email if required, then sign in to continue.");
-        setAuthMode("sign-in");
-        return;
-      }
-
-      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (signInError) {
-        throw signInError;
-      }
-
-      setSession(signInData.session);
-      setAuthModalOpen(false);
-      setAuthEmail("");
-      setAuthPassword("");
-      setSelectedBid(null);
-      setDemoFlowOpen(true);
-      setDemoStep(1);
-      setDemoErrors({});
-      setDemoSuccess(null);
-      setDemoForm(createDefaultDemoForm());
-    } catch (error) {
-      console.error("Supabase auth failed:", error);
-      setAuthError(
-        error instanceof Error ? error.message : "Authentication failed. Please try again.",
-      );
-    } finally {
-      setAuthLoading(false);
-    }
-  };
-
-  const handleFieldChange = (field: keyof DemoFormState, value: string) => {
-    setDemoForm((previous) => ({
-      ...previous,
-      [field]: value,
-    }));
-
-    setDemoErrors((previous) => ({
-      ...previous,
-      [field]: "",
-      submit: "",
-    }));
-  };
-
-  const handleCategoryChange = (category: Category) => {
-    setDemoForm((previous) => ({
-      ...previous,
-      category,
-      specialty: specialtyOptions[category][0],
-    }));
-  };
-
-  const validateCurrentStep = () => {
-    const nextErrors: Record<string, string> = {};
-
-    if (demoStep === 1) {
-      if (!demoForm.creatorName.trim()) nextErrors.creatorName = "Creator name is required.";
-      if (!demoForm.professionalTitle.trim()) nextErrors.professionalTitle = "Professional title is required.";
-      if (!demoForm.bio.trim()) nextErrors.bio = "Short bio is required.";
-      if (!demoForm.location.trim()) nextErrors.location = "Location is required.";
-      if (!demoForm.email.trim()) nextErrors.email = "Email is required.";
-      else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(demoForm.email)) nextErrors.email = "Please enter a valid email address.";
-      if (!demoForm.portfolioUrl.trim()) nextErrors.portfolioUrl = "Portfolio URL is required.";
-      else if (!isValidUrl(demoForm.portfolioUrl)) nextErrors.portfolioUrl = "Please enter a valid http or https URL.";
-      if (!demoForm.socialUrl.trim()) nextErrors.socialUrl = "Social/profile URL is required.";
-      else if (!isValidUrl(demoForm.socialUrl)) nextErrors.socialUrl = "Please enter a valid http or https URL.";
-      if (!demoForm.profileImageUrl.trim()) nextErrors.profileImageUrl = "Profile image URL is required.";
-      else if (!isValidUrl(demoForm.profileImageUrl)) nextErrors.profileImageUrl = "Please enter a valid http or https URL.";
-    }
-
-    if (demoStep === 2) {
-      if (!demoForm.category.trim()) nextErrors.category = "Choose a category.";
-      if (!demoForm.specialty.trim()) nextErrors.specialty = "Add your specialty.";
-    }
-
-    if (demoStep === 3) {
-      if (!demoForm.projectTitle.trim()) nextErrors.projectTitle = "Featured project title is required.";
-      if (!demoForm.projectImageUrl.trim()) nextErrors.projectImageUrl = "Project image URL is required.";
-      else if (!isValidUrl(demoForm.projectImageUrl)) nextErrors.projectImageUrl = "Please enter a valid http or https URL.";
-      if (!demoForm.projectUrl.trim()) nextErrors.projectUrl = "Project URL is required.";
-      else if (!isValidUrl(demoForm.projectUrl)) nextErrors.projectUrl = "Please enter a valid http or https URL.";
-      if (!demoForm.projectDescription.trim()) nextErrors.projectDescription = "Project description is required.";
-    }
-
-    if (demoStep === 4 && demoForm.desiredPosition === null) {
-      nextErrors.desiredPosition = "Select a position to take.";
-    }
-
-    if (demoStep === 5) {
-      if (!demoForm.bidAmount.trim()) nextErrors.bidAmount = "Enter a demo bid amount.";
-      else {
-        const parsedBid = Number(demoForm.bidAmount);
-        const minimumRequired = currentPositionData?.minimumRequired ?? 0;
-
-        if (Number.isNaN(parsedBid) || parsedBid < minimumRequired) {
-          nextErrors.bidAmount = `Bid must be at least ${formatCurrencyCompact(minimumRequired)}.`;
-        }
-      }
-    }
-
-    setDemoErrors(nextErrors);
-    return Object.keys(nextErrors).length === 0;
-  };
-
-  const handleDemoNext = () => {
-    if (!validateCurrentStep()) {
-      return;
-    }
-
-    setDemoStep((previous) => Math.min(previous + 1, totalDemoSteps));
-  };
-
-  const handleDemoBack = () => {
-    setDemoStep((previous) => Math.max(previous - 1, 1));
-  };
-
-  const handleDemoConfirm = async () => {
-    if (getRoundPhase(activeRound) !== "active") {
-      setDemoFlowOpen(false);
-      setSelectedBid(null);
-      return;
-    }
-
-    const bidValue = Number(demoForm.bidAmount);
-    const minimumRequired = currentPositionData?.minimumRequired ?? 0;
-
-    if (!demoForm.desiredPosition || !currentPositionData) {
-      setDemoErrors((previous) => ({
-        ...previous,
-        desiredPosition: "Select a desired position before confirming.",
-        submit: "",
-      }));
-      setDemoStep(4);
-      return;
-    }
-
-    if (!demoForm.bidAmount.trim()) {
-      setDemoErrors((previous) => ({
-        ...previous,
-        bidAmount: "Enter a demo bid amount.",
-        submit: "",
-      }));
-      return;
-    }
-
-    if (Number.isNaN(bidValue) || bidValue < minimumRequired) {
-      setDemoErrors((previous) => ({
-        ...previous,
-        bidAmount: `Bid must be at least ${formatCurrencyCompact(minimumRequired)}.`,
-        submit: "",
-      }));
-      return;
-    }
-
-    if (!validateCurrentStep()) {
-      return;
-    }
-
-    const supabase = createSupabaseBrowserClient();
-
-    try {
-      const {
-        data: { user },
-        error: userError,
-      } = await supabase.auth.getUser();
-
-      if (userError || !user) {
-        const authMessage = "Your session expired. Please sign in again.";
-        setAuthError(authMessage);
-        setDemoErrors((previous) => ({
-          ...previous,
-          submit: authMessage,
-        }));
-        setAuthModalOpen(true);
-        return;
-      }
-
-      const { error: upsertError } = await supabase.from("creators").upsert(
-        {
-          user_id: user.id,
-          name: demoForm.creatorName.trim(),
-          professional_title: demoForm.professionalTitle.trim(),
-          bio: demoForm.bio.trim(),
-          location: demoForm.location.trim(),
-          email: demoForm.email.trim(),
-          portfolio_url: demoForm.portfolioUrl.trim(),
-          social_url: demoForm.socialUrl.trim(),
-          profile_image_url: demoForm.profileImageUrl.trim(),
-          category: demoForm.category,
-          specialty: demoForm.specialty.trim() || demoForm.category,
-        },
-        { onConflict: "user_id" },
-      );
-
-      if (upsertError) {
-        throw new Error(upsertError.message);
-      }
-
-      const { data: creatorRow, error: creatorLookupError } = await supabase
-        .from("creators")
-        .select("id")
-        .eq("user_id", user.id)
-        .maybeSingle();
-
-      if (creatorLookupError) {
-        throw new Error(creatorLookupError.message);
-      }
-
-      if (activeRound?.id && creatorRow?.id) {
-        const { error: bidInsertError } = await supabase.from("bids").insert({
-          round_id: activeRound.id,
-          creator_id: creatorRow.id,
-          amount: bidValue,
-          payment_status: "pending",
-          created_at: new Date().toISOString(),
-        });
-
-        if (bidInsertError) {
-          console.warn("Bid could not be associated with the active round:", bidInsertError.message);
-        }
-      }
-
-      const targetRank = demoForm.desiredPosition;
-      const demoEntry: BidEntry = {
-        rank: targetRank,
-        name: demoForm.creatorName.trim(),
-        specialty: demoForm.specialty.trim() || demoForm.category,
-        bid: formatCurrencyCompact(bidValue),
-        bidValue,
-        score: "NEW",
-        minimumRequired: currentPositionData.minimumRequired,
-      };
-
-      const nextList = [...liveBids];
-      const targetIndex = targetRank - 1;
-      const shifted = nextList.map((entry, index) => {
-        if (index === targetIndex) {
-          return demoEntry;
-        }
-
-        if (index > targetIndex) {
-          return nextList[index - 1];
-        }
-
-        return entry;
-      }).slice(0, 10).map((entry, index) => ({
-        ...entry,
-        rank: index + 1,
-      }));
-
-      const successSnapshot: DemoSuccessState = {
-        creatorName: demoForm.creatorName.trim(),
-        position: targetRank,
-        category: demoForm.category,
-        specialty: demoForm.specialty.trim() || demoForm.category,
-        bidAmount: bidValue,
-      };
-
-      setLiveBids(shifted);
-      setDemoSuccess(successSnapshot);
-      setDemoStep(6);
-    } catch (error) {
-      const message = error instanceof Error ? error.message : "Could not confirm the demo bid.";
-      console.error("Unexpected error saving creator profile:", error);
-      setDemoErrors((previous) => ({
-        ...previous,
-        submit: message,
-      }));
-      return;
-    }
-  };
-
-  const renderProfileStep = () => (
-    <div className="demo-step-body">
-      <div className="form-grid">
-        <label className="field">
-          <span>Creator name</span>
-          <input
-            value={demoForm.creatorName}
-            onChange={(event) => handleFieldChange("creatorName", event.target.value)}
-            aria-invalid={Boolean(demoErrors.creatorName)}
-            placeholder="Your artist name"
-          />
-          {demoErrors.creatorName ? <small className="field-error">{demoErrors.creatorName}</small> : null}
-        </label>
-
-        <label className="field">
-          <span>Professional title</span>
-          <input
-            value={demoForm.professionalTitle}
-            onChange={(event) => handleFieldChange("professionalTitle", event.target.value)}
-            aria-invalid={Boolean(demoErrors.professionalTitle)}
-            placeholder="Creative Director"
-          />
-          {demoErrors.professionalTitle ? <small className="field-error">{demoErrors.professionalTitle}</small> : null}
-        </label>
-
-        <label className="field field-wide">
-          <span>Short bio</span>
-          <textarea
-            value={demoForm.bio}
-            onChange={(event) => handleFieldChange("bio", event.target.value)}
-            aria-invalid={Boolean(demoErrors.bio)}
-            placeholder="Describe your creative focus and strengths"
-          />
-          {demoErrors.bio ? <small className="field-error">{demoErrors.bio}</small> : null}
-        </label>
-
-        <label className="field">
-          <span>Location</span>
-          <input
-            value={demoForm.location}
-            onChange={(event) => handleFieldChange("location", event.target.value)}
-            aria-invalid={Boolean(demoErrors.location)}
-            placeholder="Berlin, DE"
-          />
-          {demoErrors.location ? <small className="field-error">{demoErrors.location}</small> : null}
-        </label>
-
-        <label className="field">
-          <span>Email</span>
-          <input
-            type="email"
-            value={demoForm.email}
-            onChange={(event) => handleFieldChange("email", event.target.value)}
-            aria-invalid={Boolean(demoErrors.email)}
-            placeholder="name@example.com"
-          />
-          {demoErrors.email ? <small className="field-error">{demoErrors.email}</small> : null}
-        </label>
-
-        <label className="field field-wide">
-          <span>Portfolio URL</span>
-          <input
-            type="url"
-            value={demoForm.portfolioUrl}
-            onChange={(event) => handleFieldChange("portfolioUrl", event.target.value)}
-            aria-invalid={Boolean(demoErrors.portfolioUrl)}
-            placeholder="https://yourportfolio.com"
-          />
-          {demoErrors.portfolioUrl ? <small className="field-error">{demoErrors.portfolioUrl}</small> : null}
-        </label>
-
-        <label className="field field-wide">
-          <span>Social/profile URL</span>
-          <input
-            type="url"
-            value={demoForm.socialUrl}
-            onChange={(event) => handleFieldChange("socialUrl", event.target.value)}
-            aria-invalid={Boolean(demoErrors.socialUrl)}
-            placeholder="https://instagram.com/yourhandle"
-          />
-          {demoErrors.socialUrl ? <small className="field-error">{demoErrors.socialUrl}</small> : null}
-        </label>
-
-        <label className="field field-wide">
-          <span>Profile image URL</span>
-          <input
-            type="url"
-            value={demoForm.profileImageUrl}
-            onChange={(event) => handleFieldChange("profileImageUrl", event.target.value)}
-            aria-invalid={Boolean(demoErrors.profileImageUrl)}
-            placeholder="https://images.example.com/profile.jpg"
-          />
-          {demoErrors.profileImageUrl ? <small className="field-error">{demoErrors.profileImageUrl}</small> : null}
-        </label>
-      </div>
-    </div>
-  );
-
-  const renderCategoryStep = () => (
-    <div className="demo-step-body">
-      <div className="field">
-        <span>Category</span>
-        <div className="choice-grid">
-          {categoryOptions.map((category) => (
-            <button
-              key={category}
-              type="button"
-              className={`choice-button ${demoForm.category === category ? "active" : ""}`}
-              onClick={() => handleCategoryChange(category)}
-            >
-              {category}
-            </button>
-          ))}
-        </div>
-        {demoErrors.category ? <small className="field-error">{demoErrors.category}</small> : null}
-      </div>
-
-      <label className="field">
-        <span>Specialty</span>
-        <input
-          list="specialty-options"
-          value={demoForm.specialty}
-          onChange={(event) => handleFieldChange("specialty", event.target.value)}
-          aria-invalid={Boolean(demoErrors.specialty)}
-          placeholder="Type your specialty"
-        />
-        <datalist id="specialty-options">
-          {specialtyOptions[demoForm.category].map((specialty) => (
-            <option key={specialty} value={specialty} />
-          ))}
-        </datalist>
-        {demoErrors.specialty ? <small className="field-error">{demoErrors.specialty}</small> : null}
-      </label>
-    </div>
-  );
-
-  const renderWorkStep = () => (
-    <div className="demo-step-body">
-      <div className="form-grid">
-        <label className="field field-wide">
-          <span>Featured project title</span>
-          <input
-            value={demoForm.projectTitle}
-            onChange={(event) => handleFieldChange("projectTitle", event.target.value)}
-            aria-invalid={Boolean(demoErrors.projectTitle)}
-            placeholder="Launch campaign systems redesign"
-          />
-          {demoErrors.projectTitle ? <small className="field-error">{demoErrors.projectTitle}</small> : null}
-        </label>
-
-        <label className="field field-wide">
-          <span>Project image URL</span>
-          <input
-            type="url"
-            value={demoForm.projectImageUrl}
-            onChange={(event) => handleFieldChange("projectImageUrl", event.target.value)}
-            aria-invalid={Boolean(demoErrors.projectImageUrl)}
-            placeholder="https://images.example.com/project.jpg"
-          />
-          {demoErrors.projectImageUrl ? <small className="field-error">{demoErrors.projectImageUrl}</small> : null}
-        </label>
-
-        <label className="field field-wide">
-          <span>Project/portfolio URL</span>
-          <input
-            type="url"
-            value={demoForm.projectUrl}
-            onChange={(event) => handleFieldChange("projectUrl", event.target.value)}
-            aria-invalid={Boolean(demoErrors.projectUrl)}
-            placeholder="https://yourproject.com"
-          />
-          {demoErrors.projectUrl ? <small className="field-error">{demoErrors.projectUrl}</small> : null}
-        </label>
-
-        <label className="field field-wide">
-          <span>Short project description</span>
-          <textarea
-            value={demoForm.projectDescription}
-            onChange={(event) => handleFieldChange("projectDescription", event.target.value)}
-            aria-invalid={Boolean(demoErrors.projectDescription)}
-            placeholder="Summarize the work and the result"
-          />
-          {demoErrors.projectDescription ? <small className="field-error">{demoErrors.projectDescription}</small> : null}
-        </label>
-      </div>
-
-      <div className="demo-preview-card">
-        <div className="preview-image-card">
-          <div
-            className="preview-art"
-            style={{
-              backgroundImage: demoForm.profileImageUrl
-                ? `linear-gradient(135deg, rgba(139, 61, 255, 0.22), rgba(0,0,0,0.04)), url(${demoForm.profileImageUrl})`
-                : "linear-gradient(135deg, rgba(139, 61, 255, 0.42), rgba(18, 18, 24, 0.2), rgba(255,255,255,0.08))",
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-            }}
-          />
-        </div>
-        <div className="preview-copy">
-          <div className="preview-topline">PREVIEW</div>
-          <h4>{demoForm.creatorName || "Creator Name"}</h4>
-          <p>{demoForm.professionalTitle || "Professional Title"}</p>
-          <div className="preview-meta">
-            <span>{demoForm.category}</span>
-            <span>{demoForm.specialty || "Specialty"}</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
-  const renderPositionStep = () => (
-    <div className="demo-step-body">
-      <div className="position-summary-card">
-        <div>
-          <span>Current creator</span>
-          <strong>{demoForm.creatorName || "Your creator name"}</strong>
-        </div>
-        <div>
-          <span>Current bid</span>
-          <strong>{currentPositionData ? currentPositionData.bid : "—"}</strong>
-        </div>
-        <div>
-          <span>Minimum required</span>
-          <strong>{currentPositionData ? formatCurrencyCompact(currentPositionData.minimumRequired) : "—"}</strong>
-        </div>
-      </div>
-
-      <div className="position-grid">
-        {liveBids.map((entry) => (
-          <button
-            key={entry.rank}
-            type="button"
-            className={`position-option ${demoForm.desiredPosition === entry.rank ? "selected" : ""}`}
-            onClick={() => {
-              setDemoForm((previous) => ({
-                ...previous,
-                desiredPosition: entry.rank,
-                bidAmount: previous.bidAmount || String(entry.minimumRequired),
-              }));
-              setDemoErrors((previous) => ({
-                ...previous,
-                desiredPosition: "",
-              }));
-            }}
-          >
-            <div className="position-option-top">
-              <span>#{entry.rank}</span>
-              <span className="position-badge">TAKE #{entry.rank}</span>
-            </div>
-            <div className="position-option-name">{entry.name}</div>
-            <div className="position-option-meta">
-              <span>Current bid</span>
-              <strong>{entry.bid}</strong>
-            </div>
-            <div className="position-option-meta">
-              <span>Minimum required</span>
-              <strong>{formatCurrencyCompact(entry.minimumRequired)}</strong>
-            </div>
-          </button>
-        ))}
-      </div>
-
-      {demoErrors.desiredPosition ? <small className="field-error">{demoErrors.desiredPosition}</small> : null}
-    </div>
-  );
-
-  const renderReviewStep = () => {
-    const selectedPosition = currentPositionData;
-
-    return (
-      <div className="demo-step-body">
-        <div className="review-grid">
-          <div className="review-item">
-            <span>Creator</span>
-            <strong>{demoForm.creatorName}</strong>
-          </div>
-          <div className="review-item">
-            <span>Category</span>
-            <strong>{demoForm.category}</strong>
-          </div>
-          <div className="review-item">
-            <span>Specialty</span>
-            <strong>{demoForm.specialty}</strong>
-          </div>
-          <div className="review-item">
-            <span>Desired ranking position</span>
-            <strong>#{demoForm.desiredPosition}</strong>
-          </div>
-          <div className="review-item">
-            <span>Current bid</span>
-            <strong>{selectedPosition ? selectedPosition.bid : "—"}</strong>
-          </div>
-          <div className="review-item">
-            <span>Minimum required bid</span>
-            <strong>{selectedPosition ? formatCurrencyCompact(selectedPosition.minimumRequired) : "—"}</strong>
-          </div>
-        </div>
-
-        <label className="field">
-          <span>Demo bid amount</span>
-          <input
-            type="number"
-            min={selectedPosition?.minimumRequired ?? 0}
-            value={demoForm.bidAmount}
-            onChange={(event) => handleFieldChange("bidAmount", event.target.value)}
-            aria-invalid={Boolean(demoErrors.bidAmount)}
-            placeholder={String(selectedPosition?.minimumRequired ?? 0)}
-          />
-          <small className="field-hint">Must be equal to or greater than {selectedPosition ? formatCurrencyCompact(selectedPosition.minimumRequired) : "$0"}.</small>
-          {demoErrors.bidAmount ? <small className="field-error">{demoErrors.bidAmount}</small> : null}
-          {demoErrors.submit ? <small className="field-error">{demoErrors.submit}</small> : null}
-        </label>
-      </div>
+  const [participants, setParticipants] = useState(initialParticipants);
+  const [selectedId, setSelectedId] = useState(1);
+  const [message, setMessage] = useState("MODO PRUEBA: los cambios son instantáneos y sirven para validar la mecánica.");
+  const [month, setMonth] = useState("OCTUBRE 2026");
+
+  const ranking = useMemo(() => rankParticipants(participants), [participants]);
+  const selected = ranking.find((p) => p.id === selectedId) ?? ranking[0];
+  const topFive = ranking.slice(0, 5);
+
+  const addClicks = (id: number, amount = 100) => {
+    setParticipants((current) =>
+      current.map((p) =>
+        p.id === id
+          ? { ...p, clicks: p.clicks + amount, impressions: p.impressions + amount * 12 }
+          : p,
+      ),
     );
+    setMessage("Interacción agregada. El ranking se recalculó automáticamente.");
   };
 
-  const renderSuccessStep = () => {
-    const successData: DemoSuccessState = demoSuccess ?? {
-      creatorName: demoForm.creatorName.trim(),
-      position: demoForm.desiredPosition ?? 1,
-      category: demoForm.category,
-      specialty: demoForm.specialty.trim() || demoForm.category,
-      bidAmount: Number(demoForm.bidAmount || 0),
-    };
-
-    return (
-      <div className="demo-step-body success-step">
-        <div className="success-badge">ESTÁS EN EL RANKING</div>
-        <h4>{successData.creatorName}</h4>
-        <p>
-          Nueva posición simulada: <strong>#{successData.position}</strong>
-        </p>
-        <p>
-          Oferta confirmada: <strong>{formatCurrencyCompact(successData.bidAmount)}</strong>
-        </p>
-        <p>
-          Creador: <strong>{successData.creatorName}</strong>
-        </p>
-        <div className="success-meta">
-          <span>{successData.category}</span>
-          <span>{successData.specialty}</span>
-        </div>
-      </div>
+  const addCredits = (id: number, amount: number) => {
+    setParticipants((current) =>
+      current.map((p) =>
+        p.id === id
+          ? { ...p, credits: Math.min(MONTHLY_CAP, p.credits + amount) }
+          : p,
+      ),
     );
+    setMessage(`Promoción simulada: +${amount.toLocaleString()} créditos. Máximo mensual: ${MONTHLY_CAP.toLocaleString()}.`);
+  };
+
+  const resetDemo = () => {
+    setParticipants(initialParticipants);
+    setMessage("Demo reiniciada.");
   };
 
   return (
-    <div className="page-shell">
-      <header className="topbar">
-        <div className="brand-wrap" aria-label="Creative Rank home">
-          <div className="brand-mark">CR</div>
-          <span>CREATIVE RANK</span>
+    <main style={styles.page}>
+      <header style={styles.header}>
+        <div>
+          <div style={styles.logo}>CREATIVE<span>RANK</span></div>
+          <div style={styles.tagline}>THE MONTHLY CREATIVE COMPETITION</div>
         </div>
-
-        <nav className="nav" aria-label="Main navigation">
-          {navItems.map((item) => (
-            <a key={item.id} href={`#${item.id}`} className="nav-link">
-              {item.label}
-            </a>
-          ))}
+        <nav style={styles.nav}>
+          <a href="#ranking">RANKING</a>
+          <a href="#winners">TOP 5</a>
+          <a href="#how">HOW IT WORKS</a>
+          <button onClick={resetDemo} style={styles.smallButton}>RESET DEMO</button>
         </nav>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          {session ? (
-            <button
-              className="secondary-button button-medium"
-              onClick={async () => {
-                const supabase = createSupabaseBrowserClient();
-                await supabase.auth.signOut();
-                setSession(null);
-              }}
-            >
-              LOG OUT
-            </button>
-          ) : (
-            <button className="secondary-button button-medium" onClick={() => setAuthModalOpen(true)}>
-              LOG IN
-            </button>
-          )}
-          {isBiddingActive ? (
-            <button className="primary-button button-medium" onClick={() => openDemoFlow()}>
-              JOIN THE RANKING
-            </button>
-          ) : null}
-        </div>
       </header>
 
-      <main>
-        <section className="hero-section">
-          <div className="hero-copy">
-            <div className="eyebrow">VISIBLE. VOTED. VERIFIED.</div>
-            <h1>
-              WHO GETS THE <span className="attention-text">ATTENTION?</span>
-            </h1>
-            <p className="hero-subtitle">
-              Creators compete for visibility.
-              <span className="divider-dot">•</span>
-              Their work decides who rises.
-            </p>
-
-            <div className="hero-actions">
-              {isBiddingActive ? (
-                <button className="primary-button" onClick={() => openDemoFlow()}>
-                  ENTER THE RANKING
-                </button>
-              ) : null}
-              <button className="secondary-button" onClick={() => scrollToSection("trending")}>
-                DISCOVER TALENT
-              </button>
-            </div>
+      <section style={styles.hero}>
+        <div style={styles.heroCopy}>
+          <div style={styles.eyebrow}>● LIVE MONTHLY RANKING · {month}</div>
+          <h1>Compete.<br /><span>Get discovered.</span></h1>
+          <p>
+            Creative Rank premia la combinación de promoción y respuesta real de la audiencia.
+            Llegar a 20.000 créditos no congela tu posición: los clics pueden cambiar el ranking durante todo el mes.
+          </p>
+          <div style={styles.heroButtons}>
+            <a href="#ranking" style={styles.primary}>VER RANKING</a>
+            <a href="#how" style={styles.secondary}>CÓMO FUNCIONA</a>
           </div>
+        </div>
+        <div style={styles.heroCard}>
+          <div style={styles.cardLabel}>MONTHLY CAP</div>
+          <div style={styles.bigNumber}>20K</div>
+          <div style={styles.cardText}>créditos máximos de influencia promocional por participante.</div>
+          <div style={styles.livePill}>● COMPETITION ACTIVE</div>
+        </div>
+      </section>
 
-          <div className="hero-panel">
-            <div className="panel-glow" />
-            <div className="mini-score-card">
-              <div className="mini-header">
-                <span className="mini-label">TOP CREATOR</span>
-                <span className="mini-pill">LIVE</span>
-              </div>
-              <h2>{currentLeader?.name ?? "No current leader"}</h2>
-              <p>{currentLeader?.specialty ?? "No active round"}</p>
-              <div className="mini-stats">
-                <div>
-                  <span>Attention</span>
-                  <strong>{currentLeader?.score ?? "--"}</strong>
-                </div>
-                <div>
-                  <span>Bid</span>
-                  <strong>{currentLeader?.bid ?? "--"}</strong>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
+      <div style={styles.notice}>{message}</div>
 
-        <section className="concept-grid" aria-label="Platform value propositions">
-          {conceptCards.map((card) => (
-            <article key={card.title} className="concept-card">
-              <div className="concept-title">{card.title}</div>
-              <p>{card.text}</p>
-            </article>
-          ))}
-        </section>
-
-        <section className="section-block live-bids-block" id="live-bids">
-          <div className="section-header">
-            <div>
-              <div className="section-kicker">
-                {isShowcaseActive ? "SHOWCASE" : isBiddingActive ? "LIVE BIDS" : "NO ACTIVE ROUND"}
-              </div>
-              <h3>
-                {isShowcaseActive ? "Showcase ends in" : isBiddingActive ? "Round closes in" : "Round unavailable"}
-              </h3>
-            </div>
-            <div className="countdown" aria-live="polite">
-              {countdown}
-            </div>
-          </div>
-
-          <div className="bid-layout">
-            <div className="ranking-panel">
-              <div className="ranking-header">
-                <span>TOP 10 RANKING</span>
-                <span className="status-pill">
-                  {isShowcaseActive ? "SHOWCASE" : isBiddingActive ? "48H ROUND" : "NO ROUND"}
-                </span>
-              </div>
-
-              <div className="rank-list">
-                {liveBids.map((entry) => (
-                  <div key={entry.rank} className="rank-row">
-                    <div className="rank-cell rank-index">#{entry.rank}</div>
-                    <div className="rank-cell creator-meta">
-                      <strong>{entry.name}</strong>
-                      <span>{entry.specialty}</span>
-                    </div>
-                    <div className="rank-cell bid-value">{entry.bid}</div>
-                    <div className="rank-cell score-value">{entry.score}</div>
-                    {isBiddingActive ? (
-                      <button
-                        className="take-button"
-                        onClick={() => {
-                          setSelectedBid(entry);
-                        }}
-                      >
-                        TAKE #{entry.rank}
-                      </button>
-                    ) : null}
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            <aside className="leader-panel">
-              <div className="leader-topline">CURRENT LEADER</div>
-              <h4>{currentLeader?.name ?? "No current leader"}</h4>
-              <p>{currentLeader?.specialty ?? "No active round"}</p>
-              <div className="leader-metrics">
-                <div>
-                  <span>Attention Score</span>
-                  <strong>{currentLeader?.score ?? "--"}</strong>
-                </div>
-                <div>
-                  <span>Bid Active</span>
-                  <strong>{currentLeader?.bid ?? "--"}</strong>
-                </div>
-              </div>
-              <div className="leader-visual">
-                <div className="visual-orb orb-1" />
-                <div className="visual-orb orb-2" />
-                <div className="visual-orb orb-3" />
-              </div>
-            </aside>
-          </div>
-        </section>
-
-        <section className="section-block showcase-block" id="showcase">
-          <div className="section-header compact">
-            <div>
-              <div className="section-kicker">SHOWCASE</div>
-              <h3>Previous round Top 10</h3>
-            </div>
-          </div>
-
-          <div className="showcase-grid">
-            {showcaseCards.map((card, index) => (
-              <article key={card.name} className="showcase-card">
-                <div className="card-number">#{index + 1}</div>
-                <div className="card-visual" />
-                <h4>{card.name}</h4>
-                <p>{card.specialty}</p>
-                <div className="score-row">
-                  <span>Attention Score</span>
-                  <strong>{card.score}</strong>
-                </div>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="section-block trending-block" id="trending">
-          <div className="section-header compact">
-            <div>
-              <div className="section-kicker">TRENDING CREATORS</div>
-              <h3>August</h3>
-            </div>
-          </div>
-
-          <div className="trending-table-wrap">
-            <div className="trending-table" role="table" aria-label="Trending creators list">
-              <div className="table-head" role="row">
-                <span role="columnheader">Rank</span>
-                <span role="columnheader">Creator</span>
-                <span role="columnheader">Specialty</span>
-                <span role="columnheader">Attention Score</span>
-              </div>
-
-              {trendingCreators.map((creator) => (
-                <div key={creator.rank} className="table-row" role="row">
-                  <span role="cell">#{creator.rank}</span>
-                  <span role="cell" className="creator-name">{creator.name}</span>
-                  <span role="cell">{creator.specialty}</span>
-                  <span role="cell" className="table-score">{creator.score}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="section-block how-it-works-block" id="how-it-works">
-          <div className="section-header compact">
-            <div>
-              <div className="section-kicker">HOW IT WORKS</div>
-              <h3>Three steps to the top</h3>
-            </div>
-          </div>
-
-          <div className="how-it-works-grid">
-            {howItWorksSteps.map((step) => (
-              <article key={step.step} className="how-it-works-card">
-                <div className="how-it-works-step">{step.step}</div>
-                <h4>{step.title}</h4>
-                <p>{step.text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
-        <section className="cta-panel">
+      <section id="ranking" style={styles.section}>
+        <div style={styles.sectionHead}>
           <div>
-            <div className="section-kicker">ARE YOU A CREATIVE?</div>
-            <h3>Get seen. Prove your work. Earn your rank.</h3>
+            <div style={styles.eyebrow}>01 · LIVE RANKING</div>
+            <h2>La posición puede cambiar hasta el último día.</h2>
           </div>
-          {isBiddingActive ? (
-            <button className="primary-button" onClick={() => openDemoFlow()}>
-              JOIN THE NEXT ROUND
-            </button>
-          ) : null}
-        </section>
-      </main>
-
-      <footer className="site-footer">
-        <div className="footer-brand">
-          <div className="brand-mark small">CR</div>
-          <span>CREATIVE RANK</span>
+          <div style={styles.monthBadge}>{month}</div>
         </div>
 
-        <p>Visibility is bought. Attention is earned.</p>
+        <div style={styles.dashboard}>
+          <div style={styles.tableCard}>
+            <div style={styles.tableHeader}>
+              <span>#</span><span>PARTICIPANT</span><span>CREDITS</span><span>CLICKS</span><span>SCORE</span>
+            </div>
+            {ranking.map((p) => (
+              <button
+                key={p.id}
+                onClick={() => setSelectedId(p.id)}
+                style={{ ...styles.row, ...(selected?.id === p.id ? styles.rowSelected : {}) }}
+              >
+                <strong style={styles.rank}>{p.rank <= 3 ? ["🥇", "🥈", "🥉"][p.rank - 1] : p.rank}</strong>
+                <span style={styles.person}>
+                  <strong>{p.name}</strong>
+                  <small>{p.category}</small>
+                </span>
+                <span>{p.credits.toLocaleString()}</span>
+                <span>{p.clicks.toLocaleString()}</span>
+                <strong>{p.score}</strong>
+              </button>
+            ))}
+          </div>
 
-        <div className="footer-links">
-          <a href="#">About</a>
-          <a href="#">FAQ</a>
-          <a href="#">Terms</a>
-          <a href="#">Privacy</a>
-          <a href="#">Contact</a>
+          <aside style={styles.sideCard}>
+            <div style={styles.eyebrow}>SELECTED PARTICIPANT</div>
+            <h3>{selected.name}</h3>
+            <p>{selected.category}</p>
+            <div style={styles.metrics}>
+              <Metric label="POSITION" value={`#${selected.rank}`} />
+              <Metric label="CR SCORE" value={selected.score.toLocaleString()} />
+              <Metric label="CLICKS" value={selected.clicks.toLocaleString()} />
+              <Metric label="CREDITS" value={`${(selected.credits / 1000).toFixed(1)}K`} />
+            </div>
+            <div style={styles.progressLabel}>
+              <span>Promotional cap</span>
+              <span>{selected.credits.toLocaleString()} / {MONTHLY_CAP.toLocaleString()}</span>
+            </div>
+            <div style={styles.progress}><span style={{ width: `${(selected.credits / MONTHLY_CAP) * 100}%` }} /></div>
+            <div style={styles.actionGrid}>
+              <button onClick={() => addClicks(selected.id, 100)} style={styles.primary}>+100 CLICKS</button>
+              <button onClick={() => addCredits(selected.id, 1000)} style={styles.secondary}>+1K CREDITS</button>
+            </div>
+            <small style={styles.hint}>Prueba: llevá un participante de abajo hacia el Top 5 usando clics.</small>
+          </aside>
         </div>
+      </section>
+
+      <section id="winners" style={styles.section}>
+        <div style={styles.sectionHead}>
+          <div>
+            <div style={styles.eyebrow}>02 · TOP 5</div>
+            <h2>Los ganadores se definen al cierre del mes.</h2>
+          </div>
+        </div>
+        <div style={styles.winnerGrid}>
+          {topFive.map((p) => (
+            <div key={p.id} style={styles.winnerCard}>
+              <div style={styles.winnerRank}>{p.rank === 1 ? "🏆" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : `#${p.rank}`}</div>
+              <h3>{p.name}</h3>
+              <p>{p.category}</p>
+              <div style={styles.winnerStats}><span>{p.clicks.toLocaleString()} clicks</span><strong>{p.score}</strong></div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <section id="how" style={styles.section}>
+        <div style={styles.sectionHead}>
+          <div>
+            <div style={styles.eyebrow}>03 · HOW IT WORKS</div>
+            <h2>Una competencia que permanece viva todo el mes.</h2>
+          </div>
+        </div>
+        <div style={styles.steps}>
+          <Step n="01" title="PROMOCIONÁ" text="Comprá créditos y llevá tu publicación hasta un máximo de 20.000 créditos mensuales." />
+          <Step n="02" title="GENERÁ INTERÉS" text="Las visualizaciones y especialmente los clics representan la respuesta real de la audiencia." />
+          <Step n="03" title="ESCALÁ" text="Aunque llegues al máximo de créditos, podés seguir subiendo posiciones mediante mejor rendimiento." />
+        </div>
+      </section>
+
+      <section style={styles.testPanel}>
+        <div>
+          <div style={styles.eyebrow}>MVP TEST CONSOLE</div>
+          <h2>Probemos la mecánica antes de conectar pagos reales.</h2>
+          <p>Seleccioná cualquier participante de la tabla y agregale clics. Vas a ver cómo cambia su posición inmediatamente.</p>
+        </div>
+        <button onClick={() => { setMonth("NOVIEMBRE 2026"); resetDemo(); }} style={styles.primary}>SIMULAR NUEVO MES</button>
+      </section>
+
+      <footer style={styles.footer}>
+        <strong>CREATIVE<span>RANK</span></strong>
+        <span>MVP · Monthly Competition Engine</span>
+        <span>© 2026</span>
       </footer>
-
-      {selectedBid && (
-        <div className="bid-modal-backdrop" onClick={() => setSelectedBid(null)}>
-          <div
-            className="bid-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="bid-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <button className="modal-close" onClick={() => setSelectedBid(null)} aria-label="Close bid modal">
-              ×
-            </button>
-            <div className="section-kicker">TAKE POSITION</div>
-            <h4 id="bid-modal-title">Creator position #{selectedBid.rank}</h4>
-
-            <div className="modal-details">
-              <div>
-                <span>Creator</span>
-                <strong>{selectedBid.name}</strong>
-              </div>
-              <div>
-                <span>Current bid</span>
-                <strong>{selectedBid.bid}</strong>
-              </div>
-              <div>
-                <span>Minimum amount required</span>
-                <strong>{formatCurrencyCompact(selectedBid.minimumRequired)}</strong>
-              </div>
-            </div>
-
-            <button
-              className="primary-button modal-button"
-              onClick={() => {
-                setSelectedBid(null);
-                openDemoFlow(selectedBid.rank);
-              }}
-            >
-              CONTINUE TO BID
-            </button>
-          </div>
-        </div>
-      )}
-
-      {authModalOpen && (
-        <div className="demo-modal-backdrop" onClick={() => setAuthModalOpen(false)}>
-          <div
-            className="demo-modal auth-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="auth-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="demo-modal-header">
-              <div>
-                <div className="section-kicker">ACCESS</div>
-                <h3 id="auth-modal-title">
-                  {authMode === "sign-up" ? "Create account" : authMode === "forgot-password" ? "Reset password" : "Sign in"}
-                </h3>
-              </div>
-              <button className="modal-close" onClick={() => setAuthModalOpen(false)} aria-label="Close auth modal">
-                ×
-              </button>
-            </div>
-
-            <div className="form-grid" style={{ gridTemplateColumns: "1fr" }}>
-              <label className="field field-wide">
-                <span>Email</span>
-                <input
-                  type="email"
-                  value={authEmail}
-                  onChange={(event) => setAuthEmail(event.target.value)}
-                  placeholder="name@example.com"
-                />
-              </label>
-
-              {authMode !== "forgot-password" ? (
-                <label className="field field-wide">
-                  <span>Password</span>
-                  <input
-                    type="password"
-                    value={authPassword}
-                    onChange={(event) => setAuthPassword(event.target.value)}
-                    placeholder="••••••••"
-                  />
-                </label>
-              ) : null}
-            </div>
-
-            {authError ? <small className="field-error">{authError}</small> : null}
-            {authInfo ? <small className="field-hint">{authInfo}</small> : null}
-
-            {authMode === "sign-in" ? (
-              <button className="secondary-button modal-button" type="button" onClick={() => {
-                setAuthMode("forgot-password");
-                setAuthPassword("");
-                setAuthError("");
-                setAuthInfo("");
-              }}>
-                ¿OLVIDASTE TU CONTRASEÑA?
-              </button>
-            ) : null}
-
-            <div className="modal-actions">
-              <button className="secondary-button" type="button" onClick={() => {
-                setAuthMode(authMode === "sign-up" ? "sign-in" : "sign-in");
-                setAuthError("");
-                setAuthInfo("");
-              }}>
-                {authMode === "sign-up" ? "Already have an account?" : "Back to sign in"}
-              </button>
-              <button className="primary-button" type="button" onClick={handleAuthSubmit} disabled={authLoading}>
-                {authLoading ? "PLEASE WAIT..." : authMode === "sign-up" ? "CREATE ACCOUNT" : authMode === "forgot-password" ? "SEND RESET LINK" : "SIGN IN"}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {demoFlowOpen && (
-        <div className="demo-modal-backdrop" onClick={() => setDemoFlowOpen(false)}>
-          <div
-            className="demo-modal"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="demo-modal-title"
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div className="demo-modal-header">
-              <div>
-                <div className="section-kicker">JOIN THE RANKING</div>
-                <h3 id="demo-modal-title">Create your demo profile</h3>
-              </div>
-              <button className="modal-close" onClick={() => setDemoFlowOpen(false)} aria-label="Close creator flow modal">
-                ×
-              </button>
-            </div>
-
-            <div className="demo-progress" aria-live="polite">
-              PASO {demoStep} DE {totalDemoSteps}
-            </div>
-            <div className="demo-progress-bar" aria-hidden="true">
-              <span style={{ width: `${(demoStep / totalDemoSteps) * 100}%` }} />
-            </div>
-
-            {demoStep === 1 && renderProfileStep()}
-            {demoStep === 2 && renderCategoryStep()}
-            {demoStep === 3 && renderWorkStep()}
-            {demoStep === 4 && renderPositionStep()}
-            {demoStep === 5 && renderReviewStep()}
-            {demoStep === 6 && renderSuccessStep()}
-
-            {demoStep >= 1 && demoStep <= 4 && (
-              <div className="modal-actions">
-                <button className="secondary-button" type="button" onClick={handleDemoBack} disabled={demoStep === 1}>
-                  Atrás
-                </button>
-                <button className="primary-button" type="button" onClick={handleDemoNext}>
-                  Continuar
-                </button>
-              </div>
-            )}
-
-            {demoStep === 6 && (
-              <div className="modal-actions success-actions">
-                <button
-                  className="primary-button"
-                  type="button"
-                  onClick={() => {
-                    setDemoFlowOpen(false);
-                    scrollToSection("live-bids");
-                  }}
-                >
-                  VER CLASIFICACIÓN EN VIVO
-                </button>
-              </div>
-            )}
-
-            {demoStep === 5 && (
-              <div className="modal-actions confirm-actions">
-                <button className="secondary-button" type="button" onClick={handleDemoBack}>
-                  Atrás
-                </button>
-                <button className="primary-button" type="button" onClick={handleDemoConfirm}>
-                  CONFIRMAR OFERTA DE DEMO
-                </button>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </div>
+    </main>
   );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return <div style={styles.metric}><small>{label}</small><strong>{value}</strong></div>;
+}
+
+function Step({ n, title, text }: { n: string; title: string; text: string }) {
+  return <article style={styles.step}><div style={styles.stepN}>{n}</div><h3>{title}</h3><p>{text}</p></article>;
+}
+
+const styles: Record<string, React.CSSProperties> = {
+  page: { minHeight: "100vh", background: "#07070a", color: "#f7f4ff", fontFamily: "Inter, ui-sans-serif, system-ui, sans-serif", padding: "24px clamp(16px, 4vw, 64px)" },
+  header: { maxWidth: 1280, margin: "0 auto", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 24, padding: "14px 0 34px" },
+  logo: { fontSize: 25, fontWeight: 900, letterSpacing: "-0.06em" },
+  logoSpan: {},
+  tagline: { color: "#888493", fontSize: 9, letterSpacing: "0.2em", marginTop: 4 },
+  nav: { display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap" },
+  navLink: {},
+  navA: {},
+  hero: { maxWidth: 1280, margin: "0 auto", minHeight: 500, display: "grid", gridTemplateColumns: "1.35fr .65fr", gap: 28, alignItems: "center", padding: "70px 0" },
+  heroCopy: {},
+  eyebrow: { color: "#b892ff", fontSize: 11, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase" as const },
+  hero: {},
+  heroH1: {},
+  h1: { fontSize: "clamp(58px, 9vw, 126px)", lineHeight: .83, letterSpacing: "-0.085em", margin: "24px 0 30px", fontWeight: 900 },
+  heroCopyP: {},
+  heroButtons: { display: "flex", gap: 12, flexWrap: "wrap", marginTop: 28 },
+  primary: { border: 0, borderRadius: 12, padding: "13px 18px", background: "#8b3dff", color: "white", fontWeight: 800, fontSize: 11, letterSpacing: "0.1em", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" },
+  secondary: { border: "1px solid #30293b", borderRadius: 12, padding: "12px 18px", background: "#111017", color: "#eee9fa", fontWeight: 800, fontSize: 11, letterSpacing: "0.1em", cursor: "pointer", textDecoration: "none", display: "inline-flex", alignItems: "center", justifyContent: "center" },
+  heroCard: { minHeight: 330, border: "1px solid #292330", borderRadius: 28, padding: 30, background: "radial-gradient(circle at 50% 20%, rgba(139,61,255,.24), rgba(15,14,20,.95) 55%)", display: "flex", flexDirection: "column", justifyContent: "center" },
+  cardLabel: { color: "#888493", fontSize: 10, letterSpacing: "0.16em", fontWeight: 800 },
+  bigNumber: { fontSize: 94, lineHeight: 1, fontWeight: 900, letterSpacing: "-0.08em", margin: "14px 0" },
+  cardText: { color: "#aaa5b3", lineHeight: 1.6, maxWidth: 300 },
+  livePill: { marginTop: 30, color: "#d4bbff", fontSize: 10, letterSpacing: "0.12em", fontWeight: 800 },
+  notice: { maxWidth: 1280, margin: "0 auto 30px", border: "1px solid #2b2337", background: "#0e0c12", borderRadius: 14, padding: "12px 16px", color: "#aaa5b3", fontSize: 12 },
+  section: { maxWidth: 1280, margin: "0 auto", padding: "80px 0 30px" },
+  sectionHead: { display: "flex", justifyContent: "space-between", alignItems: "end", gap: 20, marginBottom: 26 },
+  h2: { fontSize: "clamp(30px, 4vw, 52px)", lineHeight: 1, letterSpacing: "-0.06em", margin: "10px 0 0", maxWidth: 760 },
+  monthBadge: { border: "1px solid #332a40", borderRadius: 999, padding: "10px 14px", color: "#c8bdd4", fontSize: 10, letterSpacing: "0.12em", fontWeight: 800 },
+  dashboard: { display: "grid", gridTemplateColumns: "1.45fr .55fr", gap: 18 },
+  tableCard: { border: "1px solid #292330", borderRadius: 22, overflow: "hidden", background: "#0c0b10" },
+  tableHeader: { display: "grid", gridTemplateColumns: "48px minmax(150px,1.5fr) 110px 90px 80px", gap: 10, padding: "15px 18px", color: "#77717f", fontSize: 9, letterSpacing: "0.14em", fontWeight: 800, borderBottom: "1px solid #201c25" },
+  row: { width: "100%", display: "grid", gridTemplateColumns: "48px minmax(150px,1.5fr) 110px 90px 80px", gap: 10, alignItems: "center", padding: "16px 18px", border: 0, borderBottom: "1px solid #19171d", background: "transparent", color: "#e9e4f0", textAlign: "left", cursor: "pointer", fontSize: 12 },
+  rowSelected: { background: "rgba(139,61,255,.09)" },
+  rank: { color: "#c8b8da", fontSize: 15 },
+  person: { display: "flex", flexDirection: "column", gap: 3 },
+  sideCard: { border: "1px solid #292330", borderRadius: 22, padding: 22, background: "linear-gradient(180deg,#100d15,#0c0b10)" },
+  sideCardH3: {},
+  metrics: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, margin: "20px 0" },
+  metric: { border: "1px solid #25212b", borderRadius: 12, padding: 12, background: "#0b0a0f", display: "flex", flexDirection: "column", gap: 7 },
+  progressLabel: { display: "flex", justifyContent: "space-between", color: "#827b8c", fontSize: 9, marginTop: 10 },
+  progress: { height: 7, background: "#211c28", borderRadius: 99, overflow: "hidden", margin: "8px 0 18px" },
+  actionGrid: { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 },
+  hint: { display: "block", color: "#706a78", lineHeight: 1.5, marginTop: 14 },
+  winnerGrid: { display: "grid", gridTemplateColumns: "repeat(5,1fr)", gap: 12 },
+  winnerCard: { border: "1px solid #292330", borderRadius: 20, padding: 18, background: "#0c0b10" },
+  winnerRank: { fontSize: 24, marginBottom: 22 },
+  winnerStats: { display: "flex", justifyContent: "space-between", alignItems: "end", marginTop: 24, color: "#77717f", fontSize: 10 },
+  steps: { display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 14 },
+  step: { border: "1px solid #292330", borderRadius: 20, padding: 22, background: "#0c0b10" },
+  stepN: { color: "#b892ff", fontWeight: 900, fontSize: 12, letterSpacing: ".1em" },
+  testPanel: { maxWidth: 1280, margin: "80px auto 20px", border: "1px solid #3a2b4d", borderRadius: 26, padding: 28, background: "linear-gradient(120deg,rgba(139,61,255,.13),rgba(12,11,16,.95))", display: "flex", justifyContent: "space-between", alignItems: "center", gap: 20 },
+  footer: { maxWidth: 1280, margin: "60px auto 0", padding: "30px 0", borderTop: "1px solid #201c25", color: "#6e6876", display: "flex", justifyContent: "space-between", gap: 16, fontSize: 10 },
+  smallButton: { border: "1px solid #30293b", background: "#111017", color: "#aaa5b3", borderRadius: 9, padding: "8px 10px", fontSize: 9, fontWeight: 800, cursor: "pointer" },
+  personSmall: {},
+  p: {},
+};
+
+styles.heroCopyP = { color: "#aaa5b3", fontSize: 17, lineHeight: 1.65, maxWidth: 690, margin: 0 };
+styles.h1 = { ...styles.h1, };
+styles.logo = { ...styles.logo };
+styles.h2 = { ...styles.h2 };
+styles.sideCardH3 = { margin: "10px 0 4px", fontSize: 34, letterSpacing: "-0.06em" };
+styles.p = { margin: 0, color: "#8b8493" };
+styles.personSmall = { color: "#787180", fontSize: 10 };
+
+if (typeof window !== "undefined") {
+  // Responsive fallback without requiring another CSS dependency.
+  const styleId = "creative-rank-mvp-responsive";
+  if (!document.getElementById(styleId)) {
+    const style = document.createElement("style");
+    style.id = styleId;
+    style.textContent = `
+      @media (max-width: 900px) {
+        .cr-hero, .cr-dashboard { grid-template-columns: 1fr !important; }
+        .cr-winners { grid-template-columns: repeat(2,1fr) !important; }
+        .cr-steps { grid-template-columns: 1fr !important; }
+      }
+      @media (max-width: 650px) {
+        .cr-header { flex-direction: column !important; align-items: flex-start !important; }
+        .cr-nav { width: 100% !important; }
+        .cr-table-head { display:none !important; }
+        .cr-row { grid-template-columns: 36px 1fr 75px !important; }
+        .cr-row > span:nth-child(3), .cr-row > span:nth-child(4) { display:none !important; }
+        .cr-winners { grid-template-columns: 1fr !important; }
+        .cr-test { flex-direction: column !important; align-items: flex-start !important; }
+        .cr-footer { flex-direction: column !important; }
+      }
+    `;
+    document.head.appendChild(style);
+  }
 }
