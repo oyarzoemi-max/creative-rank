@@ -18,6 +18,7 @@ type Participant = {
   logo: string;
   accent: string;
   site: string;
+  entryId?: string;
 };
 
 const isImageUrl = (value: string) => /^(https?:\/\/|blob:|data:image\/)/i.test(value);
@@ -119,6 +120,7 @@ export default function Home() {
       };
       const live: Participant[] = data.map((p: any, index: number) => ({
         id: index + 1,
+        entryId: p.entry_id,
         name: p.name,
         category: p.category ?? "General",
         credits: Number(p.credits ?? 0),
@@ -145,6 +147,20 @@ export default function Home() {
   const selected = ranking.find((p) => p.id === selectedId) ?? ranking[0];
   const profile = ranking.find((p) => p.id === profileId) ?? null;
 
+
+  const trackEvent = async (id: number, eventType: "impression" | "profile_view" | "ad_click" | "external_visit", source: string) => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return;
+    const participant = participants.find(p => p.id === id);
+    if (!participant?.entryId) return;
+    const supabase = createSupabaseBrowserClient();
+    const sessionId = typeof window !== "undefined" ? window.sessionStorage.getItem("cr_session_id") || (() => { const v = crypto.randomUUID(); window.sessionStorage.setItem("cr_session_id", v); return v; })() : null;
+    const { error } = await supabase.rpc("track_creative_event", { p_entry_id: participant.entryId, p_event_type: eventType, p_source: source, p_session_id: sessionId });
+    if (error) return;
+    if (eventType === "impression") setParticipants(current => current.map(p => p.id === id ? { ...p, impressions: p.impressions + 1 } : p));
+    if (eventType === "ad_click") setParticipants(current => current.map(p => p.id === id ? { ...p, clicks: p.clicks + 1 } : p));
+    if (eventType === "external_visit") setParticipants(current => current.map(p => p.id === id ? { ...p, externalVisits: p.externalVisits + 1 } : p));
+  };
+
   const addClicks = (id: number, amount = 100) => {
     setParticipants(current => current.map(p => p.id === id
       ? { ...p, clicks: p.clicks + amount, impressions: p.impressions + amount * 12 }
@@ -153,7 +169,12 @@ export default function Home() {
   };
 
   const adClick = (id: number) => {
-    setParticipants(current => current.map(p => p.id === id ? { ...p, clicks: p.clicks + 1 } : p));
+    const participant = participants.find(p => p.id === id);
+    if (participant?.entryId) {
+      void trackEvent(id, "ad_click", "profile_banner");
+    } else {
+      setParticipants(current => current.map(p => p.id === id ? { ...p, clicks: p.clicks + 1 } : p));
+    }
     setMessage("🎯 Click publicitario registrado. La audiencia movió el ranking.");
   };
 
@@ -359,7 +380,9 @@ export default function Home() {
   };
 
   const visitSite = (id: number) => {
-    setParticipants(current => current.map(p => p.id === id ? { ...p, externalVisits: p.externalVisits + 1 } : p));
+    const participant = participants.find(p => p.id === id);
+    if (participant?.entryId) void trackEvent(id, "external_visit", "profile_site");
+    else setParticipants(current => current.map(p => p.id === id ? { ...p, externalVisits: p.externalVisits + 1 } : p));
     setMessage("🌐 Visita al sitio registrada. La empresa recibió una visita externa.");
   };
 
@@ -430,7 +453,7 @@ export default function Home() {
             </button>
             <div style={styles.dashboardBottom}>
               <div><small>SITIO VINCULADO</small><strong>{selected.site.replace("https://","")}</strong></div>
-              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button onClick={() => openEdit(selected)} style={styles.secondary}>EDITAR DATOS ✎</button><button onClick={() => setProfileId(selected.id)} style={styles.secondary}>VER PERFIL →</button></div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}><button onClick={() => openEdit(selected)} style={styles.secondary}>EDITAR DATOS ✎</button><button onClick={() => { setProfileId(selected.id); void trackEvent(selected.id, "profile_view", "dashboard"); }} style={styles.secondary}>VER PERFIL →</button></div>
             </div>
           </div>
           <div className="cr-kpi-grid" style={styles.kpiGrid}>
@@ -512,7 +535,7 @@ export default function Home() {
         <div style={styles.sectionHead}><div><div style={styles.eyebrow}>02 · TOP 5</div><h2 style={styles.h2}>Los que están captando atención este mes.</h2></div></div>
         <div className="cr-winners" style={styles.winnerGrid}>
           {ranking.slice(0,5).map(p => (
-            <button key={p.id} onClick={() => setProfileId(p.id)} style={{ ...styles.winnerCard, textAlign: "left", color: "#fff", cursor: "pointer" }}>
+            <button key={p.id} onClick={() => { setProfileId(p.id); void trackEvent(p.id, "profile_view", "ranking"); }} style={{ ...styles.winnerCard, textAlign: "left", color: "#fff", cursor: "pointer" }}>
               <div style={styles.winnerVisual}><span>{p.rank === 1 ? "🏆" : p.rank === 2 ? "🥈" : p.rank === 3 ? "🥉" : `#${p.rank}`}</span><span style={{ ...styles.miniBadge, borderColor:p.accent, color:p.accent }}>{p.category}</span></div>
               <h3>{p.name}</h3><p style={styles.p}>{p.banner}</p>
               <div style={styles.winnerStats}><span>{p.clicks.toLocaleString()} clicks</span><strong>{p.score}</strong></div>
