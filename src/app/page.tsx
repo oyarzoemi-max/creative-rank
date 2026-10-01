@@ -1,6 +1,7 @@
 'use client';
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { createSupabaseBrowserClient } from "@/lib/supabase";
 
 type Participant = {
   id: number;
@@ -58,8 +59,47 @@ export default function Home() {
   const [infoPanel, setInfoPanel] = useState<"faq" | "policies" | "rules" | null>(null);
   const [message, setMessage] = useState("MODO PRUEBA: hacé clic en un participante para explorar su perfil.");
   const [month, setMonth] = useState("OCTUBRE 2026");
+  const [dataSource, setDataSource] = useState<"demo" | "supabase">("demo");
   const [showJoin, setShowJoin] = useState(false);
   const [newCompany, setNewCompany] = useState({ name: "", category: "Tecnología", description: "", site: "" });
+
+  useEffect(() => {
+    const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    if (!url || !key) return;
+
+    let cancelled = false;
+    const loadLiveRanking = async () => {
+      const supabase = createSupabaseBrowserClient();
+      const { data, error } = await supabase.from("live_ranking").select("*").order("score", { ascending: false });
+      if (cancelled || error || !data?.length) return;
+      const accentFor = (category: string | null) => {
+        const map: Record<string, string> = { "Tecnología":"#25d9ff", "Viajes":"#65f4d0", "Diseño":"#ff3cac", "Comercio":"#ffd447", "Gastronomía":"#ff7a45", "Servicios":"#9d7cff", "Creativo":"#b46cff", "Business":"#ffb52e" };
+        return map[category ?? ""] ?? "#784cff";
+      };
+      const live: Participant[] = data.map((p: any, index: number) => ({
+        id: index + 1,
+        name: p.name,
+        category: p.category ?? "General",
+        credits: Number(p.credits ?? 0),
+        clicks: Number(p.clicks ?? 0),
+        impressions: Number(p.impressions ?? 0),
+        externalVisits: Number(p.external_visits ?? 0),
+        joinedAt: index + 1,
+        handle: p.handle ?? "",
+        logo: (p.logo_url ?? p.name ?? "C").slice(0, 1).toUpperCase(),
+        banner: p.description ?? "",
+        accent: accentFor(p.category),
+        site: p.site_url ?? "https://example.com"
+      }));
+      setParticipants(live);
+      setSelectedId(live[0]?.id ?? 1);
+      setDataSource("supabase");
+      setMessage("🟢 Datos en vivo conectados desde Supabase.");
+    };
+    loadLiveRanking();
+    return () => { cancelled = true; };
+  }, []);
 
   const ranking = useMemo(() => rankParticipants(participants), [participants]);
   const selected = ranking.find((p) => p.id === selectedId) ?? ranking[0];
@@ -168,7 +208,7 @@ export default function Home() {
         </div>
       </section>
 
-      <div style={styles.notice}>{message}</div>
+      <div style={styles.notice}>{message}<span style={styles.sourcePill}>{dataSource === "supabase" ? "● DATOS EN VIVO" : "● MODO DEMO"}</span></div>
 
 
       <section className="cr-participant-dashboard" style={styles.participantDashboard}>
@@ -467,7 +507,7 @@ const styles: Record<string, React.CSSProperties> = {
   primary:{border:0,borderRadius:13,padding:"13px 18px",background:"linear-gradient(135deg,#ff3cac,#784cff 55%,#25d9ff)",color:"white",fontWeight:900,fontSize:10,letterSpacing:".11em",cursor:"pointer",textDecoration:"none",display:"inline-flex",alignItems:"center",justifyContent:"center",boxShadow:"0 10px 35px rgba(120,76,255,.28)"},
   secondary:{border:"1px solid rgba(255,255,255,.14)",borderRadius:13,padding:"12px 18px",background:"rgba(255,255,255,.04)",color:"#f0edf7",fontWeight:900,fontSize:10,letterSpacing:".11em",cursor:"pointer",textDecoration:"none",display:"inline-flex",alignItems:"center",justifyContent:"center"},
   heroCard:{minHeight:365,border:"1px solid rgba(255,255,255,.12)",borderRadius:30,padding:30,background:"linear-gradient(145deg,rgba(255,60,172,.16),rgba(37,217,255,.08) 48%,rgba(12,11,20,.94))",boxShadow:"0 25px 70px rgba(0,0,0,.35)",display:"flex",flexDirection:"column",justifyContent:"center"},cardLabel:{color:"#8e8ba0",fontSize:9,letterSpacing:".18em",fontWeight:900},monthTitle:{fontSize:26,fontWeight:900,margin:"8px 0 24px"},heroStats:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8},livePill:{marginTop:28,color:"#65f4d0",fontSize:10,letterSpacing:".12em",fontWeight:900},
-  notice:{maxWidth:1380,margin:"0 auto 22px",border:"1px solid rgba(101,244,208,.2)",background:"rgba(101,244,208,.06)",borderRadius:14,padding:"12px 16px",color:"#b9f9e8",fontSize:11},section:{maxWidth:1380,margin:"0 auto",padding:"72px 0 20px"},sectionHead:{display:"flex",justifyContent:"space-between",alignItems:"end",gap:20,marginBottom:24},h2:{fontSize:"clamp(30px,4vw,54px)",lineHeight:1,letterSpacing:"-.065em",margin:"9px 0 0",maxWidth:800},monthBadge:{border:"1px solid rgba(255,255,255,.14)",borderRadius:999,padding:"9px 13px",color:"#d5d0df",fontSize:9,letterSpacing:".13em",fontWeight:900,background:"rgba(255,255,255,.04)"},
+  notice:{maxWidth:1380,margin:"0 auto 22px",border:"1px solid rgba(101,244,208,.2)",background:"rgba(101,244,208,.06)",borderRadius:14,padding:"12px 16px",color:"#b9f9e8",fontSize:11,display:"flex",justifyContent:"space-between",alignItems:"center",gap:12},sourcePill:{flexShrink:0,border:"1px solid rgba(101,244,208,.25)",borderRadius:999,padding:"5px 8px",fontSize:8,fontWeight:900,letterSpacing:".08em"},section:{maxWidth:1380,margin:"0 auto",padding:"72px 0 20px"},sectionHead:{display:"flex",justifyContent:"space-between",alignItems:"end",gap:20,marginBottom:24},h2:{fontSize:"clamp(30px,4vw,54px)",lineHeight:1,letterSpacing:"-.065em",margin:"9px 0 0",maxWidth:800},monthBadge:{border:"1px solid rgba(255,255,255,.14)",borderRadius:999,padding:"9px 13px",color:"#d5d0df",fontSize:9,letterSpacing:".13em",fontWeight:900,background:"rgba(255,255,255,.04)"},
   dashboard:{display:"grid",gridTemplateColumns:"1.4fr .6fr",gap:16},tableCard:{border:"1px solid rgba(255,255,255,.11)",borderRadius:24,overflow:"hidden",background:"rgba(12,11,18,.86)",boxShadow:"0 20px 60px rgba(0,0,0,.2)"},tableHeader:{display:"grid",gridTemplateColumns:"36px minmax(130px,1.4fr) 90px 90px 70px 80px 75px 55px",gap:8,padding:"15px 14px",color:"#777487",fontSize:8,letterSpacing:".1em",fontWeight:900,borderBottom:"1px solid rgba(255,255,255,.07)"},
   row:{display:"grid",gridTemplateColumns:"36px minmax(130px,1.4fr) 90px 90px 70px 80px 75px 55px",gap:8,alignItems:"center",padding:"14px",borderBottom:"1px solid rgba(255,255,255,.055)",background:"transparent",color:"#eeeaf5",cursor:"pointer",fontSize:11,transition:"all .18s"},rowSelected:{background:"linear-gradient(90deg,rgba(255,60,172,.12),rgba(37,217,255,.06))",boxShadow:"inset 3px 0 #ff3cac"},rank:{color:"#f4c7ff",fontSize:14},person:{display:"flex",flexDirection:"column",gap:3},category:{border:"1px solid",borderRadius:999,padding:"4px 7px",fontSize:8,fontWeight:900,width:"fit-content"},score:{color:"#ffd447",fontSize:13},viewButton:{border:0,borderRadius:8,padding:"8px 9px",background:"linear-gradient(135deg,#ff3cac,#784cff)",color:"#fff",fontSize:8,fontWeight:900,cursor:"pointer"},
   sideCard:{border:"1px solid rgba(255,255,255,.12)",borderRadius:24,padding:20,background:"linear-gradient(160deg,rgba(120,76,255,.15),rgba(12,11,18,.94))",boxShadow:"0 20px 60px rgba(0,0,0,.25)"},profileBanner:{height:130,borderRadius:18,position:"relative",overflow:"hidden",background:"linear-gradient(135deg,#27114e,#0c5060)",padding:14,marginBottom:18},bannerGlow:{position:"absolute",width:160,height:160,borderRadius:"50%",filter:"blur(55px)",opacity:.55,right:-30,top:-40},profileRank:{position:"relative",fontSize:24,fontWeight:950},avatar:{position:"absolute",right:16,bottom:14,width:58,height:58,borderRadius:"50%",background:"rgba(255,255,255,.16)",border:"2px solid rgba(255,255,255,.5)",display:"grid",placeItems:"center",fontSize:24,fontWeight:950,backdropFilter:"blur(8px)"},metrics:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,margin:"18px 0"},metric:{border:"1px solid rgba(255,255,255,.08)",borderRadius:13,padding:11,background:"rgba(0,0,0,.2)",display:"flex",flexDirection:"column",gap:6},progressLabel:{display:"flex",justifyContent:"space-between",color:"#8e8ba0",fontSize:9,marginTop:8},progress:{height:8,background:"#211d2b",borderRadius:99,overflow:"hidden",margin:"8px 0 18px"},actionGrid:{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8},fullButton:{width:"100%",marginTop:9,border:"1px solid rgba(255,255,255,.12)",borderRadius:11,padding:"11px",background:"rgba(255,255,255,.04)",color:"#ddd8e8",fontSize:9,fontWeight:900,cursor:"pointer"},
