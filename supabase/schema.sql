@@ -186,6 +186,16 @@ alter table public.banners enable row level security;
 alter table public.monthly_winners enable row level security;
 alter table public.event_log enable row level security;
 alter table public.profiles enable row level security;
+
+-- Ownership policies: participants can manage only their own profile/company data.
+drop policy if exists profiles_self_insert on public.profiles;
+create policy profiles_self_insert on public.profiles for insert with check (auth.uid() = id);
+drop policy if exists companies_owner_read on public.companies;
+create policy companies_owner_read on public.companies for select using (auth.uid() = owner_id);
+drop policy if exists companies_owner_insert on public.companies;
+create policy companies_owner_insert on public.companies for insert with check (auth.uid() = owner_id);
+drop policy if exists companies_owner_update on public.companies;
+create policy companies_owner_update on public.companies for update using (auth.uid() = owner_id) with check (auth.uid() = owner_id);
 alter table public.credit_purchases enable row level security;
 alter table public.credit_movements enable row level security;
 
