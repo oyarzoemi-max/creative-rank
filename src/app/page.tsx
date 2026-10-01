@@ -251,7 +251,6 @@ const styles: Record<string, React.CSSProperties> = {
   hero: { maxWidth: 1280, margin: "0 auto", minHeight: 500, display: "grid", gridTemplateColumns: "1.35fr .65fr", gap: 28, alignItems: "center", padding: "70px 0" },
   heroCopy: {},
   eyebrow: { color: "#b892ff", fontSize: 11, fontWeight: 800, letterSpacing: "0.16em", textTransform: "uppercase" as const },
-  hero: {},
   heroH1: {},
   h1: { fontSize: "clamp(58px, 9vw, 126px)", lineHeight: .83, letterSpacing: "-0.085em", margin: "24px 0 30px", fontWeight: 900 },
   heroCopyP: {},
