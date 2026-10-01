@@ -22,13 +22,16 @@ export async function POST(request: Request) {
     if (!purchaseId) return NextResponse.json({ ok: true });
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
-    const { data: purchase } = await supabase.from("credit_purchases").select("id,company_id,edition_id,credits,status").eq("id", purchaseId).single();
+    const { data: purchase } = await supabase.from("credit_purchases").select("id,status").eq("id", purchaseId).single();
     if (!purchase || purchase.status === "approved") return NextResponse.json({ ok: true });
 
-    const { data: entry } = await supabase.from("entries").select("id,credits").eq("company_id", purchase.company_id).eq("edition_id", purchase.edition_id).single();
-    if (!entry || Number(entry.credits) + Number(purchase.credits) > 20000) {
-      await supabase.from("credit_purchases").update({ status: "cancelled", provider_payment_id: String(payment.id) }).eq("id", purchase.id);
-      return NextResponse.json({ ok: true });
+    const { error: approvalError } = await supabase.rpc("approve_credit_purchase", {
+      p_purchase_id: purchaseId,
+      p_provider_payment_id: String(payment.id),
+    });
+    if (approvalError) return NextResponse.json({ error: "No se pudo acreditar." }, { status: 500 });
+
+    return NextResponse.json({ ok: true });
     }
 
     const newBalance = Number(entry.credits) + Number(purchase.credits);
