@@ -55,6 +55,8 @@ export default function Home() {
   const [infoPanel, setInfoPanel] = useState<"faq" | "policies" | "rules" | null>(null);
   const [message, setMessage] = useState("MODO PRUEBA: hacé clic en un participante para explorar su perfil.");
   const [month, setMonth] = useState("OCTUBRE 2026");
+  const [showJoin, setShowJoin] = useState(false);
+  const [newCompany, setNewCompany] = useState({ name: "", category: "Tecnología", description: "", site: "" });
 
   const ranking = useMemo(() => rankParticipants(participants), [participants]);
   const selected = ranking.find((p) => p.id === selectedId) ?? ranking[0];
@@ -77,6 +79,40 @@ export default function Home() {
       ? { ...p, credits: Math.min(MONTHLY_CAP, p.credits + amount) }
       : p));
     setMessage(`🚀 Promoción simulada: +${amount.toLocaleString()} créditos.`);
+  };
+
+  const registerCompany = () => {
+    const name = newCompany.name.trim();
+    const description = newCompany.description.trim();
+    const site = newCompany.site.trim() || "https://example.com";
+    if (!name || !description) {
+      setMessage("⚠️ Completá el nombre y la descripción breve de la empresa.");
+      return;
+    }
+    const nextId = Math.max(...participants.map(p => p.id), 0) + 1;
+    const accentPalette = ["#ff3cac", "#25d9ff", "#65f4d0", "#ffd447", "#9d7cff", "#ff7a45"];
+    const accent = accentPalette[(nextId - 1) % accentPalette.length];
+    const handle = "@" + name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 18);
+    const participant: Participant = {
+      id: nextId,
+      name,
+      category: newCompany.category,
+      credits: 0,
+      clicks: 0,
+      impressions: 0,
+      joinedAt: nextId,
+      handle,
+      logo: name.slice(0, 1).toUpperCase(),
+      banner: description,
+      accent,
+      site,
+    };
+    setParticipants(current => [...current, participant]);
+    setSelectedId(nextId);
+    setShowJoin(false);
+    setNewCompany({ name: "", category: "Tecnología", description: "", site: "" });
+    setMessage(`🚀 ${name} ya está participando. Creative Rank generó su banner automáticamente.`);
+    setTimeout(() => document.getElementById("ranking")?.scrollIntoView({ behavior: "smooth" }), 50);
   };
 
   const resetDemo = () => {
@@ -105,7 +141,7 @@ export default function Home() {
           <h1 style={styles.h1}>EL TALENTO<br /><span style={styles.gradientText}>SE DESTACA.</span></h1>
           <p style={styles.heroCopyP}>Marcas, proyectos y experiencias compitiendo por atención. Promocioná, generá interés y hacé que tu posición pueda cambiar hasta el último día.</p>
           <div style={styles.heroButtons}>
-            <a href="#ranking" style={styles.primary}>DESCUBRIR RANKING →</a>
+            <a href="#ranking" style={styles.primary}>DESCUBRIR RANKING →</a><button onClick={() => setShowJoin(true)} style={styles.secondary}>PARTICIPAR →</button>
             <a href="#how" style={styles.secondary}>CÓMO FUNCIONA</a>
           </div>
         </div>
@@ -253,6 +289,34 @@ export default function Home() {
 
       <footer className="cr-footer" style={styles.footer}><strong>CREATIVE<span style={{color:"#ff3cac"}}>RANK</span></strong><span>MVP · Monthly Competition Engine</span><span>© 2026</span></footer>
 
+
+      {showJoin && (
+        <div style={styles.modalBackdrop} onClick={() => setShowJoin(false)}>
+          <div style={styles.joinModal} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowJoin(false)} style={styles.close}>×</button>
+            <div style={styles.joinHead}>
+              <div style={styles.eyebrow}>NUEVA PARTICIPACIÓN</div>
+              <h2 style={styles.h2}>Mostrá tu marca en Creative Rank.</h2>
+              <p style={styles.p}>Completá los datos básicos. El sistema genera automáticamente tu banner con la identidad de Creative Rank.</p>
+            </div>
+            <div style={styles.joinBody}>
+              <label style={styles.field}><span>NOMBRE DE LA EMPRESA</span><input value={newCompany.name} onChange={e => setNewCompany({...newCompany, name:e.target.value})} placeholder="Ej. Patagonia Travel" /></label>
+              <label style={styles.field}><span>CATEGORÍA</span><select value={newCompany.category} onChange={e => setNewCompany({...newCompany, category:e.target.value})}><option>Tecnología</option><option>Viajes</option><option>Diseño</option><option>Comercio</option><option>Gastronomía</option><option>Servicios</option><option>Creativo</option><option>Business</option></select></label>
+              <label style={styles.field}><span>DESCRIPCIÓN BREVE</span><textarea maxLength={120} value={newCompany.description} onChange={e => setNewCompany({...newCompany, description:e.target.value})} placeholder="Hasta 120 caracteres. ¿Qué hace tu empresa?" /><small>{newCompany.description.length}/120</small></label>
+              <label style={styles.field}><span>SITIO WEB</span><input type="url" value={newCompany.site} onChange={e => setNewCompany({...newCompany, site:e.target.value})} placeholder="https://tusitio.com" /></label>
+              <div style={styles.generatedPreview}>
+                <div style={styles.eyebrow}>VISTA PREVIA · BANNER GENERADO</div>
+                <div style={{...styles.previewBanner, borderColor: newCompany.name ? "#25d9ff" : "rgba(255,255,255,.12)"}}>
+                  <div style={{...styles.generatedLogoLarge, borderColor:"#25d9ff"}}>{newCompany.name.trim().slice(0,1).toUpperCase() || "C"}</div>
+                  <div><strong>{newCompany.name.trim() || "Tu empresa"}</strong><p>{newCompany.description.trim() || "Tu descripción breve aparecerá aquí."}</p><span style={styles.generatedCategory}>{newCompany.category}</span></div>
+                </div>
+              </div>
+              <button onClick={registerCompany} style={{...styles.primary, width:"100%", marginTop:4}}>GENERAR BANNER Y PARTICIPAR →</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {infoPanel && (
         <div style={styles.modalBackdrop} onClick={() => setInfoPanel(null)}>
           <div style={styles.infoModal} onClick={e => e.stopPropagation()}>
@@ -350,6 +414,13 @@ const styles: Record<string, React.CSSProperties> = {
   infoGrid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14},
   infoCard:{border:"1px solid rgba(255,255,255,.11)",borderRadius:22,padding:22,background:"linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.015))",color:"#f8f7ff",textAlign:"left",cursor:"pointer",display:"grid",gridTemplateColumns:"48px 1fr",gap:14},
   infoIcon:{width:42,height:42,borderRadius:13,display:"grid",placeItems:"center",background:"linear-gradient(135deg,#ff3cac,#784cff)",fontSize:18,fontWeight:950},
+  joinModal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
+  joinHead:{padding:"30px 28px 22px",background:"linear-gradient(135deg,rgba(255,60,172,.14),rgba(37,217,255,.07))",borderBottom:"1px solid rgba(255,255,255,.08)"},
+  joinBody:{padding:24,display:"grid",gap:14},
+  field:{display:"grid",gap:7,color:"#aaa6b7",fontSize:9,fontWeight:900,letterSpacing:".1em"},
+  fieldInput:{},
+  generatedPreview:{border:"1px solid rgba(255,255,255,.09)",borderRadius:18,padding:16,background:"rgba(255,255,255,.025)"},
+  previewBanner:{minHeight:115,border:"1px solid",borderRadius:16,padding:16,display:"flex",alignItems:"center",gap:16,background:"linear-gradient(135deg,rgba(37,217,255,.12),rgba(120,76,255,.1))"},
   infoModal:{width:"min(760px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
   infoModalHead:{padding:"30px 28px 22px",background:"linear-gradient(135deg,rgba(255,60,172,.14),rgba(37,217,255,.07))",borderBottom:"1px solid rgba(255,255,255,.08)"},
   infoModalBody:{padding:"8px 28px 28px"},
@@ -360,6 +431,7 @@ const styles: Record<string, React.CSSProperties> = {
   modalBackdrop:{position:"fixed",inset:0,zIndex:50,background:"rgba(2,2,8,.78)",backdropFilter:"blur(12px)",display:"grid",placeItems:"center",padding:20},modal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},close:{position:"absolute",right:14,top:12,zIndex:2,width:36,height:36,borderRadius:"50%",border:"1px solid rgba(255,255,255,.2)",background:"rgba(0,0,0,.35)",color:"#fff",fontSize:22,cursor:"pointer"},modalBanner:{minHeight:240,padding:28,display:"flex",flexDirection:"column",justifyContent:"space-between",borderRadius:"28px 28px 0 0"},modalRank:{fontSize:34,fontWeight:950},modalLive:{alignSelf:"flex-end",marginTop:-30,fontSize:9,fontWeight:900,letterSpacing:".12em"},modalBody:{padding:24},modalMetrics:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,margin:"20px 0"},fakeChart:{height:130,border:"1px solid rgba(255,255,255,.08)",borderRadius:16,padding:14,background:"linear-gradient(180deg,rgba(120,76,255,.08),transparent)",position:"relative",overflow:"hidden"},chartLine:{position:"absolute",left:15,right:15,bottom:35,height:75,display:"flex",alignItems:"end",gap:7},modalActions:{display:"flex",gap:9,marginTop:18}
 };
 
+/* Form controls use native browser styling while matching the Creative Rank visual system. */
 if (typeof window !== "undefined") {
   const styleId = "creative-rank-mvp-responsive";
   if (!document.getElementById(styleId)) {
@@ -367,7 +439,7 @@ if (typeof window !== "undefined") {
     style.id = styleId;
     style.textContent = `
       *{box-sizing:border-box} html{scroll-behavior:smooth}
-      button:hover,a:hover{filter:brightness(1.12);transform:translateY(-1px)}
+      button:hover,a:hover{filter:brightness(1.12);transform:translateY(-1px)} input,select,textarea{width:100%;border:1px solid rgba(255,255,255,.12);border-radius:12px;background:#12111b;color:#f8f7ff;padding:12px 13px;font:inherit;outline:none}textarea{min-height:88px;resize:vertical}input:focus,select:focus,textarea:focus{border-color:#25d9ff;box-shadow:0 0 0 3px rgba(37,217,255,.08)}
       @media(max-width:1050px){.cr-dashboard{grid-template-columns:1fr!important}.cr-table-card{overflow-x:auto}.cr-winners{grid-template-columns:repeat(3,1fr)!important}}
       @media(max-width:800px){.cr-hero{grid-template-columns:1fr!important}.cr-winners{grid-template-columns:repeat(2,1fr)!important}.cr-steps{grid-template-columns:1fr!important}.cr-table-head{display:none!important}}
       @media(max-width:900px){.cr-info-grid{grid-template-columns:1fr!important}}
