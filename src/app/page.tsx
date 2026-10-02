@@ -78,6 +78,7 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [showVerification, setShowVerification] = useState(false);
   const [ownedCompanyId, setOwnedCompanyId] = useState<string | null>(null);
   const [pendingParticipation, setPendingParticipation] = useState(false);
 
@@ -231,7 +232,8 @@ export default function Home() {
       if (authMode === "register" && !result.data.session) {
         setShowAuth(false);
         setAuthMode("login");
-        setMessage("📩 La cuenta fue creada, pero Supabase exige confirmar el email. Revisá tu correo y, cuando lo confirmes, hacé clic en INGRESAR para continuar con la participación.");
+        setShowVerification(true);
+        setMessage("📩 Te enviamos un mensaje de verificación a tu correo.");
         return;
       }
 
@@ -639,6 +641,34 @@ export default function Home() {
       <footer className="cr-footer" style={styles.footer}><strong>CREATIVE<span style={{color:"#ff3cac"}}>RANK</span></strong><span>MVP · Monthly Competition Engine</span><span>© 2026</span></footer>
 
 
+      {showVerification && (
+        <div style={styles.authBackdrop} onClick={() => setShowVerification(false)}>
+          <div style={styles.authModal} onClick={e => e.stopPropagation()}>
+            <button onClick={() => setShowVerification(false)} style={styles.close}>×</button>
+            <div style={styles.verificationCard}>
+              <div style={styles.verificationIcon}>✓</div>
+              <div style={styles.eyebrow}>CUENTA CREADA</div>
+              <h2 style={styles.verificationTitle}>¡Listo! Te enviamos un mensaje de verificación.</h2>
+              <p style={styles.verificationText}>
+                Revisá tu correo y hacé clic en el enlace de verificación de Supabase.
+                Después volvé a Creative Rank e ingresá con tu email y contraseña para continuar.
+              </p>
+              <div style={styles.verificationSteps}>
+                <div><strong>1</strong><span>Revisá tu bandeja de entrada y también Spam.</span></div>
+                <div><strong>2</strong><span>Confirmá tu correo desde el mensaje recibido.</span></div>
+                <div><strong>3</strong><span>Volvé a Creative Rank y elegí INGRESAR.</span></div>
+              </div>
+              <button type="button" onClick={() => { setShowVerification(false); setAuthMode("login"); setShowAuth(true); }} style={{...styles.primary,width:"100%"}}>
+                YA VERIFIQUÉ MI CORREO · INGRESAR →
+              </button>
+              <button type="button" onClick={() => setShowVerification(false)} style={{...styles.secondary,width:"100%"}}>
+                CERRAR
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAuth && (
         <div style={styles.authBackdrop} onClick={() => setShowAuth(false)}>
           <div style={styles.authModal} onClick={e => e.stopPropagation()}>
@@ -828,7 +858,14 @@ const styles: Record<string, React.CSSProperties> = {
   infoGrid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14},
   infoCard:{border:"1px solid rgba(255,255,255,.11)",borderRadius:22,padding:22,background:"linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.015))",color:"#f8f7ff",textAlign:"left",cursor:"pointer",display:"grid",gridTemplateColumns:"48px 1fr",gap:14},
   infoIcon:{width:42,height:42,borderRadius:13,display:"grid",placeItems:"center",background:"linear-gradient(135deg,#ff3cac,#784cff)",fontSize:18,fontWeight:950},
-  authModal:{width:"min(620px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},joinModal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
+  authModal:{width:"min(620px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
+  verificationCard:{padding:"42px 32px",textAlign:"center",display:"grid",gap:14},
+  verificationIcon:{width:68,height:68,borderRadius:"50%",margin:"0 auto 4px",display:"grid",placeItems:"center",background:"linear-gradient(135deg,#65f4d0,#25d9ff)",color:"#07131c",fontSize:34,fontWeight:950,boxShadow:"0 0 40px rgba(101,244,208,.22)"},
+  verificationTitle:{fontSize:"clamp(28px,5vw,42px)",lineHeight:1.02,letterSpacing:"-.055em",margin:"2px auto",maxWidth:520},
+  verificationText:{color:"#aaa6b7",fontSize:13,lineHeight:1.65,maxWidth:500,margin:"0 auto 8px"},
+  verificationSteps:{display:"grid",gap:8,textAlign:"left",margin:"4px 0 8px"},
+  verificationStepsRow:{display:"flex",alignItems:"center",gap:10},
+joinModal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
   joinHead:{padding:"30px 28px 22px",background:"linear-gradient(135deg,rgba(255,60,172,.14),rgba(37,217,255,.07))",borderBottom:"1px solid rgba(255,255,255,.08)"},
   joinBody:{padding:24,display:"grid",gap:14},
   field:{display:"grid",gap:7,color:"#aaa6b7",fontSize:9,fontWeight:900,letterSpacing:".1em"},
