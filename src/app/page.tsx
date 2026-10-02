@@ -79,6 +79,7 @@ export default function Home() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
   const [ownedCompanyId, setOwnedCompanyId] = useState<string | null>(null);
+  const [pendingParticipation, setPendingParticipation] = useState(false);
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -185,6 +186,17 @@ export default function Home() {
     setMessage(`🚀 Promoción simulada: +${amount.toLocaleString()} créditos.`);
   };
 
+  const openParticipation = () => {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !userEmail) {
+      setPendingParticipation(true);
+      setAuthMode("register");
+      setShowAuth(true);
+      setMessage("🔐 Primero creá tu cuenta. Después completarás los datos de tu empresa y generaremos tu banner.");
+      return;
+    }
+    setShowJoin(true);
+  };
+
   const handleAuth = async () => {
     const email = authEmail.trim();
     if (!email || !authPassword) {
@@ -221,7 +233,13 @@ export default function Home() {
       }
 
       setShowAuth(false);
-      setMessage(authMode === "login" ? "🟢 Sesión iniciada correctamente." : "🟢 Cuenta creada y sesión iniciada.");
+      if (pendingParticipation) {
+        setPendingParticipation(false);
+        setShowJoin(true);
+        setMessage("🟢 Cuenta lista. Ahora completá los datos de tu empresa para generar tu banner.");
+      } else {
+        setMessage(authMode === "login" ? "🟢 Sesión iniciada correctamente." : "🟢 Cuenta creada y sesión iniciada.");
+      }
     } catch (error) {
       setMessage("⚠️ No se pudo completar la operación: " + (error instanceof Error ? error.message : "error desconocido"));
     } finally {
@@ -250,9 +268,10 @@ export default function Home() {
     const accent = accentPalette[(nextId - 1) % accentPalette.length];
     const handle = "@" + name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 18);
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !userEmail) {
+      setPendingParticipation(true);
       setAuthMode("register");
       setShowAuth(true);
-      setMessage("🔐 Creá tu cuenta para registrar una participación real. Si ya tenés cuenta, podés cambiar a INGRESAR.");
+      setMessage("🔐 Primero creá tu cuenta. Después completarás los datos de tu empresa.");
       return;
     }
     setSaveBusy(true);
@@ -429,7 +448,7 @@ export default function Home() {
           <h1 style={styles.h1}>EL TALENTO<br /><span style={styles.gradientText}>SE DESTACA.</span></h1>
           <p style={styles.heroCopyP}>Marcas, proyectos y experiencias compitiendo por atención. Promocioná, generá interés y hacé que tu posición pueda cambiar hasta el último día.</p>
           <div style={styles.heroButtons}>
-            <a href="#ranking" style={styles.primary}>DESCUBRIR RANKING →</a><button onClick={() => setShowJoin(true)} style={styles.secondary}>PARTICIPAR →</button>
+            <a href="#ranking" style={styles.primary}>DESCUBRIR RANKING →</a><button onClick={openParticipation} style={styles.secondary}>PARTICIPAR →</button>
             <a href="#how" style={styles.secondary}>CÓMO FUNCIONA</a>
           </div>
         </div>
@@ -457,7 +476,7 @@ export default function Home() {
             <h2 style={styles.h2}>Tu marca está activa.</h2>
             <p style={styles.p}>Controlá tu posición, rendimiento y presencia promocional desde un solo lugar.</p>
           </div>
-          <button onClick={() => setShowJoin(true)} style={styles.primary}>+ NUEVA PARTICIPACIÓN</button>
+          <button onClick={openParticipation} style={styles.primary}>+ NUEVA PARTICIPACIÓN</button>
         </div>
         <div className="cr-participant-grid" style={styles.participantGrid}>
           <div style={styles.participantMainCard}>
@@ -543,7 +562,7 @@ export default function Home() {
               <button onClick={() => addClicks(selected.id)} style={styles.primary}>+100 CLICKS</button>
               <button onClick={() => addCredits(selected.id,1000)} style={{ ...styles.secondary, borderColor: "#ffb52e", color: "#ffd66b" }}>+1K CRÉDITOS</button>
             </div>
-            <button onClick={() => setProfileId(selected.id)} style={styles.fullButton}>VER PERFIL COMPLETO →</button><button onClick={() => setShowJoin(true)} style={{...styles.fullButton, marginTop:8, borderColor:"rgba(255,60,172,.35)", color:"#ff9bd1"}}>PROMOCIONAR MI MARCA →</button>
+            <button onClick={() => setProfileId(selected.id)} style={styles.fullButton}>VER PERFIL COMPLETO →</button><button onClick={openParticipation} style={{...styles.fullButton, marginTop:8, borderColor:"rgba(255,60,172,.35)", color:"#ff9bd1"}}>PROMOCIONAR MI MARCA →</button>
           </aside>
         </div>
       </section>
