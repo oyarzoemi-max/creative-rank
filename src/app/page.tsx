@@ -189,6 +189,7 @@ export default function Home() {
   const openParticipation = () => {
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !userEmail) {
       setPendingParticipation(true);
+      setShowJoin(false);
       setAuthMode("register");
       setShowAuth(true);
       setMessage("🔐 Primero creá tu cuenta. Después completarás los datos de tu empresa y generaremos tu banner.");
@@ -637,7 +638,7 @@ export default function Home() {
 
 
       {showAuth && (
-        <div style={styles.modalBackdrop} onClick={() => setShowAuth(false)}>
+        <div style={styles.authBackdrop} onClick={() => setShowAuth(false)}>
           <div style={styles.authModal} onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowAuth(false)} style={styles.close}>×</button>
             <div style={styles.joinHead}>
@@ -825,7 +826,7 @@ const styles: Record<string, React.CSSProperties> = {
   infoGrid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14},
   infoCard:{border:"1px solid rgba(255,255,255,.11)",borderRadius:22,padding:22,background:"linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.015))",color:"#f8f7ff",textAlign:"left",cursor:"pointer",display:"grid",gridTemplateColumns:"48px 1fr",gap:14},
   infoIcon:{width:42,height:42,borderRadius:13,display:"grid",placeItems:"center",background:"linear-gradient(135deg,#ff3cac,#784cff)",fontSize:18,fontWeight:950},
-  joinModal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
+  authModal:{width:"min(620px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},joinModal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
   joinHead:{padding:"30px 28px 22px",background:"linear-gradient(135deg,rgba(255,60,172,.14),rgba(37,217,255,.07))",borderBottom:"1px solid rgba(255,255,255,.08)"},
   joinBody:{padding:24,display:"grid",gap:14},
   field:{display:"grid",gap:7,color:"#aaa6b7",fontSize:9,fontWeight:900,letterSpacing:".1em"},
@@ -856,7 +857,7 @@ const styles: Record<string, React.CSSProperties> = {
   infoItemQ:{fontSize:14,fontWeight:900,marginBottom:7},
   infoItemA:{fontSize:12,lineHeight:1.65,color:"#aaa6b7",margin:0},
   testPanel:{maxWidth:1380,margin:"72px auto 20px",border:"1px solid rgba(255,60,172,.25)",borderRadius:26,padding:28,background:"linear-gradient(110deg,rgba(255,60,172,.12),rgba(37,217,255,.07),rgba(12,11,18,.95))",display:"flex",justifyContent:"space-between",alignItems:"center",gap:20},footer:{maxWidth:1380,margin:"55px auto 0",padding:"28px 0",borderTop:"1px solid rgba(255,255,255,.08)",color:"#6e6a79",display:"flex",justifyContent:"space-between",gap:16,fontSize:10},
-  modalBackdrop:{position:"fixed",inset:0,zIndex:50,background:"rgba(2,2,8,.78)",backdropFilter:"blur(12px)",display:"grid",placeItems:"center",padding:20},modal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},close:{position:"absolute",right:14,top:12,zIndex:2,width:36,height:36,borderRadius:"50%",border:"1px solid rgba(255,255,255,.2)",background:"rgba(0,0,0,.35)",color:"#fff",fontSize:22,cursor:"pointer"},modalBanner:{minHeight:240,padding:28,display:"flex",flexDirection:"column",justifyContent:"space-between",borderRadius:"28px 28px 0 0"},modalRank:{fontSize:34,fontWeight:950},modalLive:{alignSelf:"flex-end",marginTop:-30,fontSize:9,fontWeight:900,letterSpacing:".12em"},modalBody:{padding:24},modalMetrics:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,margin:"20px 0"},fakeChart:{height:130,border:"1px solid rgba(255,255,255,.08)",borderRadius:16,padding:14,background:"linear-gradient(180deg,rgba(120,76,255,.08),transparent)",position:"relative",overflow:"hidden"},chartLine:{position:"absolute",left:15,right:15,bottom:35,height:75,display:"flex",alignItems:"end",gap:7},modalActions:{display:"flex",gap:9,marginTop:18}
+  authBackdrop:{position:"fixed",inset:0,zIndex:100,background:"rgba(2,2,8,.78)",backdropFilter:"blur(12px)",display:"grid",placeItems:"center",padding:20},modal:{width:"min(720px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},close:{position:"absolute",right:14,top:12,zIndex:2,width:36,height:36,borderRadius:"50%",border:"1px solid rgba(255,255,255,.2)",background:"rgba(0,0,0,.35)",color:"#fff",fontSize:22,cursor:"pointer"},modalBanner:{minHeight:240,padding:28,display:"flex",flexDirection:"column",justifyContent:"space-between",borderRadius:"28px 28px 0 0"},modalRank:{fontSize:34,fontWeight:950},modalLive:{alignSelf:"flex-end",marginTop:-30,fontSize:9,fontWeight:900,letterSpacing:".12em"},modalBody:{padding:24},modalMetrics:{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,margin:"20px 0"},fakeChart:{height:130,border:"1px solid rgba(255,255,255,.08)",borderRadius:16,padding:14,background:"linear-gradient(180deg,rgba(120,76,255,.08),transparent)",position:"relative",overflow:"hidden"},chartLine:{position:"absolute",left:15,right:15,bottom:35,height:75,display:"flex",alignItems:"end",gap:7},modalActions:{display:"flex",gap:9,marginTop:18}
 };
 
 /* Form controls use native browser styling while matching the Creative Rank visual system. */
