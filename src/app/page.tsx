@@ -78,6 +78,7 @@ export default function Home() {
   const [authPassword, setAuthPassword] = useState("");
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [authBusy, setAuthBusy] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [showVerification, setShowVerification] = useState(false);
   const [ownedCompanyId, setOwnedCompanyId] = useState<string | null>(null);
   const [pendingParticipation, setPendingParticipation] = useState(false);
@@ -188,6 +189,7 @@ export default function Home() {
   };
 
   const openParticipation = () => {
+    setAuthError("");
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !userEmail) {
       setPendingParticipation(true);
       setShowJoin(false);
@@ -201,18 +203,22 @@ export default function Home() {
 
   const handleAuth = async () => {
     const email = authEmail.trim();
+    setAuthError("");
     if (!email || !authPassword) {
-      setMessage("⚠️ Completá email y contraseña.");
+      const msg = "Completá email y contraseña.";
+      setAuthError(msg); setMessage("⚠️ " + msg);
       return;
     }
     if (authPassword.length < 6) {
-      setMessage("⚠️ La contraseña debe tener al menos 6 caracteres.");
+      const msg = "La contraseña debe tener al menos 6 caracteres.";
+      setAuthError(msg); setMessage("⚠️ " + msg);
       return;
     }
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) {
-      setMessage("ℹ️ Supabase todavía no está configurado en este entorno.");
+      const msg = "Supabase todavía no está configurado en este entorno.";
+      setAuthError(msg); setMessage("ℹ️ " + msg);
       return;
     }
 
@@ -224,7 +230,12 @@ export default function Home() {
         : await supabase.auth.signUp({ email, password: authPassword });
 
       if (result.error) {
-        setMessage("⚠️ " + result.error.message);
+        const raw = result.error.message || "No se pudo completar la operación.";
+        const friendly = /already registered|user already exists|already been registered/i.test(raw)
+          ? "Esta cuenta ya existe. Si ya verificaste el correo, elegí «YA TENGO CUENTA · INGRESAR» e ingresá con tu contraseña."
+          : raw;
+        setAuthError(friendly);
+        setMessage("⚠️ " + friendly);
         return;
       }
 
@@ -679,10 +690,11 @@ export default function Home() {
               <p style={styles.p}>Tu cuenta será la puerta de entrada a tu empresa, banner, métricas y créditos.</p>
             </div>
             <div style={styles.joinBody}>
-              <label style={styles.field}><span>EMAIL</span><input type="email" autoComplete="email" value={authEmail} onChange={e => setAuthEmail(e.target.value)} placeholder="tu@email.com" /></label>
-              <label style={styles.field}><span>CONTRASEÑA</span><input type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} value={authPassword} onChange={e => setAuthPassword(e.target.value)} placeholder="Mínimo 6 caracteres" /></label>
+              {authError && <div style={styles.authError}>⚠️ {authError}</div>}
+              <label style={styles.field}><span>EMAIL</span><input type="email" autoComplete="email" value={authEmail} onChange={e => { setAuthEmail(e.target.value); setAuthError(""); }} placeholder="tu@email.com" /></label>
+              <label style={styles.field}><span>CONTRASEÑA</span><input type="password" autoComplete={authMode === "login" ? "current-password" : "new-password"} value={authPassword} onChange={e => { setAuthPassword(e.target.value); setAuthError(""); }} placeholder="Mínimo 6 caracteres" /></label>
               <button disabled={authBusy} onClick={handleAuth} style={{...styles.primary,opacity:authBusy?.65:1}}>{authBusy ? "PROCESANDO..." : authMode === "login" ? "INGRESAR →" : "CREAR CUENTA →"}</button>
-              <button onClick={() => setAuthMode(authMode === "login" ? "register" : "login")} style={styles.secondary}>{authMode === "login" ? "NO TENGO CUENTA · CREAR" : "YA TENGO CUENTA · INGRESAR"}</button>
+              <button onClick={() => { setAuthError(""); setAuthMode(authMode === "login" ? "register" : "login"); }} style={styles.secondary}>{authMode === "login" ? "NO TENGO CUENTA · CREAR" : "YA TENGO CUENTA · INGRESAR"}</button>
             </div>
           </div>
         </div>
@@ -858,6 +870,7 @@ const styles: Record<string, React.CSSProperties> = {
   infoGrid:{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14},
   infoCard:{border:"1px solid rgba(255,255,255,.11)",borderRadius:22,padding:22,background:"linear-gradient(145deg,rgba(255,255,255,.055),rgba(255,255,255,.015))",color:"#f8f7ff",textAlign:"left",cursor:"pointer",display:"grid",gridTemplateColumns:"48px 1fr",gap:14},
   infoIcon:{width:42,height:42,borderRadius:13,display:"grid",placeItems:"center",background:"linear-gradient(135deg,#ff3cac,#784cff)",fontSize:18,fontWeight:950},
+  authError:{border:"1px solid rgba(255,95,117,.45)",background:"rgba(255,95,117,.08)",color:"#ffb6c0",borderRadius:12,padding:"11px 13px",fontSize:11,lineHeight:1.5,fontWeight:800},
   authModal:{width:"min(620px,100%)",maxHeight:"90vh",overflow:"auto",border:"1px solid rgba(255,255,255,.16)",borderRadius:28,background:"#0b0a12",boxShadow:"0 30px 100px rgba(0,0,0,.6)",position:"relative"},
   verificationCard:{padding:"42px 32px",textAlign:"center",display:"grid",gap:14},
   verificationIcon:{width:68,height:68,borderRadius:"50%",margin:"0 auto 4px",display:"grid",placeItems:"center",background:"linear-gradient(135deg,#65f4d0,#25d9ff)",color:"#07131c",fontSize:34,fontWeight:950,boxShadow:"0 0 40px rgba(101,244,208,.22)"},
