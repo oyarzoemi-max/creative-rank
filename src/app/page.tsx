@@ -191,25 +191,42 @@ export default function Home() {
       setMessage("⚠️ Completá email y contraseña.");
       return;
     }
+    if (authPassword.length < 6) {
+      setMessage("⚠️ La contraseña debe tener al menos 6 caracteres.");
+      return;
+    }
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) {
       setMessage("ℹ️ Supabase todavía no está configurado en este entorno.");
       return;
     }
+
     setAuthBusy(true);
-    const supabase = createSupabaseBrowserClient();
-    const result = authMode === "login"
-      ? await supabase.auth.signInWithPassword({ email, password: authPassword })
-      : await supabase.auth.signUp({ email, password: authPassword });
-    setAuthBusy(false);
-    if (result.error) {
-      setMessage("⚠️ " + result.error.message);
-      return;
+    try {
+      const supabase = createSupabaseBrowserClient();
+      const result = authMode === "login"
+        ? await supabase.auth.signInWithPassword({ email, password: authPassword })
+        : await supabase.auth.signUp({ email, password: authPassword });
+
+      if (result.error) {
+        setMessage("⚠️ " + result.error.message);
+        return;
+      }
+
+      setAuthPassword("");
+      if (authMode === "register" && !result.data.session) {
+        setMessage("📩 Cuenta creada. Supabase requiere confirmar tu email antes de iniciar sesión. Revisá tu correo y luego ingresá.");
+        return;
+      }
+
+      setShowAuth(false);
+      setMessage(authMode === "login" ? "🟢 Sesión iniciada correctamente." : "🟢 Cuenta creada y sesión iniciada.");
+    } catch (error) {
+      setMessage("⚠️ No se pudo completar la operación: " + (error instanceof Error ? error.message : "error desconocido"));
+    } finally {
+      setAuthBusy(false);
     }
-    setShowAuth(false);
-    setAuthPassword("");
-    setMessage(authMode === "login" ? "🟢 Sesión iniciada correctamente." : "📩 Cuenta creada. Revisá tu email si se solicita confirmación.");
   };
 
   const logout = async () => {
@@ -233,9 +250,9 @@ export default function Home() {
     const accent = accentPalette[(nextId - 1) % accentPalette.length];
     const handle = "@" + name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 18);
     if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !userEmail) {
-      setAuthMode("login");
+      setAuthMode("register");
       setShowAuth(true);
-      setMessage("🔐 Ingresá o creá tu cuenta para registrar una participación real.");
+      setMessage("🔐 Creá tu cuenta para registrar una participación real. Si ya tenés cuenta, podés cambiar a INGRESAR.");
       return;
     }
     setSaveBusy(true);
