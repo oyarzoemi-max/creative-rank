@@ -225,7 +225,7 @@ export default function Home() {
     setAuthBusy(true);
     try {
       // Diagnostic preflight: distinguish a Supabase connection problem from an Auth error.
-      const healthUrl = url.replace(/\\/$/, "") + "/auth/v1/settings";
+      const healthUrl = (url.endsWith("/") ? url.slice(0, -1) : url) + "/auth/v1/settings";
       try {
         const healthResponse = await fetch(healthUrl, {
           method: "GET",
