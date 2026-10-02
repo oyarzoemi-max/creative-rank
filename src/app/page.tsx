@@ -308,7 +308,11 @@ export default function Home() {
       if (userData.user) {
         const { data: category } = await supabase.from("categories").select("id").eq("name", newCompany.category).maybeSingle();
         const { data: company, error } = await supabase.from("companies").insert({ owner_id: userData.user.id, name, handle, category_id: category?.id ?? null, description, logo_url: storedLogo || null, site_url: site, accent, approved: true }).select("id").single();
-        if (error) { setMessage("⚠️ No se pudo guardar la empresa: " + error.message); return; }
+        if (error) {
+          setSaveBusy(false);
+          setMessage("⚠️ No se pudo guardar la empresa: " + error.message);
+          return;
+        }
         setOwnedCompanyId(company.id);
         const { error: entryError } = await supabase.rpc("ensure_company_entry", { p_company_id: company.id });
         if (entryError) {
@@ -672,7 +676,7 @@ export default function Home() {
                   <div><strong>{newCompany.name.trim() || "Tu empresa"}</strong><p>{newCompany.description.trim() || "Tu descripción breve aparecerá aquí."}</p><span style={styles.generatedCategory}>{newCompany.category}</span></div>
                 </div>
               </div>
-              <button onClick={registerCompany} style={{...styles.primary, width:"100%", marginTop:4}}>GENERAR BANNER Y PARTICIPAR →</button>
+              <button type="button" onClick={(e) => { e.stopPropagation(); void registerCompany(); }} disabled={saveBusy} style={{...styles.primary, width:"100%", marginTop:4, opacity:saveBusy ? .65 : 1}}>{saveBusy ? "GUARDANDO PARTICIPACIÓN..." : "GENERAR BANNER Y PARTICIPAR →"}</button>
             </div>
           </div>
         </div>
