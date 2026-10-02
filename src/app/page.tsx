@@ -82,7 +82,7 @@ export default function Home() {
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) return;
     const supabase = createSupabaseBrowserClient();
     supabase.auth.getSession().then(async ({ data }) => {
@@ -104,7 +104,7 @@ export default function Home() {
 
   useEffect(() => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) return;
 
     let cancelled = false;
@@ -149,7 +149,7 @@ export default function Home() {
 
 
   const trackEvent = async (id: number, eventType: "impression" | "profile_view" | "ad_click" | "external_visit", source: string) => {
-    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return;
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) return;
     const participant = participants.find(p => p.id === id);
     if (!participant?.entryId) return;
     const supabase = createSupabaseBrowserClient();
@@ -192,7 +192,7 @@ export default function Home() {
       return;
     }
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (!url || !key) {
       setMessage("ℹ️ Supabase todavía no está configurado en este entorno.");
       return;
@@ -214,7 +214,7 @@ export default function Home() {
 
   const logout = async () => {
     const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+    const key = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY;
     if (url && key) await createSupabaseBrowserClient().auth.signOut();
     setUserEmail(null);
     setMessage("Sesión cerrada.");
@@ -232,7 +232,7 @@ export default function Home() {
     const accentPalette = ["#ff3cac", "#25d9ff", "#65f4d0", "#ffd447", "#9d7cff", "#ff7a45"];
     const accent = accentPalette[(nextId - 1) % accentPalette.length];
     const handle = "@" + name.toLowerCase().replace(/[^a-z0-9]+/g, "").slice(0, 18);
-    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY && !userEmail) {
+    if (process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !userEmail) {
       setAuthMode("login");
       setShowAuth(true);
       setMessage("🔐 Ingresá o creá tu cuenta para registrar una participación real.");
@@ -240,7 +240,7 @@ export default function Home() {
     }
     setSaveBusy(true);
     let storedLogo = "";
-    const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ? createSupabaseBrowserClient() : null;
+    const supabase = process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ? createSupabaseBrowserClient() : null;
     if (supabase && logoFile && userEmail) {
       try {
         const { data: userData } = await supabase.auth.getUser();
@@ -266,7 +266,7 @@ export default function Home() {
       accent,
       site,
     };
-    if (userEmail && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (userEmail && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
       const supabase = createSupabaseBrowserClient();
       const { data: userData } = await supabase.auth.getUser();
       if (userData.user) {
@@ -324,7 +324,7 @@ export default function Home() {
     }
     setSaveBusy(true);
     let nextLogo = editForm.logo || name.slice(0, 1).toUpperCase();
-    if (userEmail && ownedCompanyId && editLogoFile && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (userEmail && ownedCompanyId && editLogoFile && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
       try {
         const supabase = createSupabaseBrowserClient();
         const { data: userData } = await supabase.auth.getUser();
@@ -336,7 +336,7 @@ export default function Home() {
       }
     }
     setParticipants(current => current.map(p => p.id === editId ? { ...p, name, category: editForm.category, banner: description, site: editForm.site.trim() || p.site, logo: nextLogo } : p));
-    if (userEmail && ownedCompanyId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    if (userEmail && ownedCompanyId && process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY) {
       const supabase = createSupabaseBrowserClient();
       const { data: category } = await supabase.from("categories").select("id").eq("name", editForm.category).maybeSingle();
       const { error } = await supabase.from("companies").update({ name, category_id: category?.id ?? null, description, site_url: editForm.site.trim(), logo_url: isImageUrl(nextLogo) ? nextLogo : null }).eq("id", ownedCompanyId);
