@@ -224,6 +224,30 @@ export default function Home() {
 
     setAuthBusy(true);
     try {
+      // Diagnostic preflight: distinguish a Supabase connection problem from an Auth error.
+      const healthUrl = url.replace(/\\/$/, "") + "/auth/v1/settings";
+      try {
+        const healthResponse = await fetch(healthUrl, {
+          method: "GET",
+          headers: { apikey: key },
+          cache: "no-store",
+        });
+        if (!healthResponse.ok) {
+          const body = await healthResponse.text().catch(() => "");
+          const detail = body ? " " + body.slice(0, 180) : "";
+          const msg = `Supabase Auth respondió con HTTP ${healthResponse.status}.${detail}`;
+          setAuthError(msg);
+          setMessage("⚠️ " + msg);
+          return;
+        }
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : "error de red";
+        const msg = `No se puede conectar con Supabase Auth en ${url}. (${detail})`;
+        setAuthError(msg);
+        setMessage("⚠️ " + msg);
+        return;
+      }
+
       const supabase = createSupabaseBrowserClient();
       const result = authMode === "login"
         ? await supabase.auth.signInWithPassword({ email, password: authPassword })
@@ -257,7 +281,10 @@ export default function Home() {
         setMessage(authMode === "login" ? "🟢 Sesión iniciada correctamente." : "🟢 Cuenta creada y sesión iniciada.");
       }
     } catch (error) {
-      setMessage("⚠️ No se pudo completar la operación: " + (error instanceof Error ? error.message : "error desconocido"));
+      const detail = error instanceof Error ? error.message : "error desconocido";
+      const msg = `No se pudo completar la operación: ${detail}`;
+      setAuthError(msg);
+      setMessage("⚠️ " + msg);
     } finally {
       setAuthBusy(false);
     }
