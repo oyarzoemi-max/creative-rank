@@ -229,7 +229,9 @@ export default function Home() {
 
       setAuthPassword("");
       if (authMode === "register" && !result.data.session) {
-        setMessage("📩 Cuenta creada. Supabase requiere confirmar tu email antes de iniciar sesión. Revisá tu correo y luego ingresá.");
+        setShowAuth(false);
+        setAuthMode("login");
+        setMessage("📩 La cuenta fue creada, pero Supabase exige confirmar el email. Revisá tu correo y, cuando lo confirmes, hacé clic en INGRESAR para continuar con la participación.");
         return;
       }
 
