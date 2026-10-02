@@ -1,6 +1,8 @@
 -- Creative Rank · October 2026 monthly edition + automatic enrollment
 -- Run after supabase/schema.sql
 
+drop view if exists public.live_ranking;
+
 insert into public.monthly_editions (code, name, starts_at, ends_at, status)
 values (
   '2026-10',
@@ -139,7 +141,7 @@ select
   clicks,
   external_visits,
   ctr,
-  computed_score as score,
+  computed_score::numeric(12,2) as score,
   row_number() over (
     order by computed_score desc, clicks desc, joined_at asc
   )::integer as rank
