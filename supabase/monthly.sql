@@ -142,5 +142,5 @@ select
   computed_score as score,
   row_number() over (
     order by computed_score desc, clicks desc, joined_at asc
-  ) as rank
+  )::integer as rank
 from scored;
