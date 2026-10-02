@@ -5,7 +5,7 @@ export async function POST(request: Request) {
   try {
     const accessToken = process.env.MERCADOPAGO_ACCESS_TOKEN;
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+    const serviceRoleKey = process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
     const usdToArs = Number(process.env.CREATIVE_RANK_USD_TO_ARS || 0);
     if (!accessToken || !supabaseUrl || !serviceRoleKey || !usdToArs) {
       return NextResponse.json({ error: "Mercado Pago no está configurado." }, { status: 503 });
